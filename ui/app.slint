@@ -1,0 +1,211 @@
+import { Button, VerticalBox, HorizontalBox, LineEdit, ListView, ComboBox, GroupBox } from "std-widgets.slint";
+
+export struct Contact {
+    id: int,
+    name: string,
+    email: string,
+    phone: string,
+    status: string,
+}
+
+export component App inherits Window {
+    title: "CRM - Customer Management";
+    min-width: 800px;
+    min-height: 500px;
+
+    in property <[Contact]> contacts;
+    in-out property <int> selected-index: -1;
+    in-out property <string> search-text: "";
+
+    in-out property <string> form-name: "";
+    in-out property <string> form-email: "";
+    in-out property <string> form-phone: "";
+    in-out property <int> form-status-index: 0;
+
+    callback add-contact();
+    callback delete-contact(int);
+    callback update-contact(int);
+    callback search-changed(string);
+    callback select-contact(int);
+
+    VerticalBox {
+        HorizontalBox {
+            height: 40px;
+            padding: 5px;
+
+            Text { text: "Search:"; vertical-alignment: center; }
+            LineEdit {
+                placeholder-text: "Search contacts...";
+                text <=> search-text;
+                edited => { search-changed(self.text); }
+            }
+        }
+
+        HorizontalBox {
+            VerticalBox {
+                width: 55%;
+
+                Text {
+                    text: "Contacts (" + contacts.length + ")";
+                    font-size: 16px;
+                    font-weight: 600;
+                }
+
+                Rectangle {
+                    background: #f8f8f8;
+                    border-radius: 4px;
+
+                    ListView {
+                        for contact[index] in contacts: Rectangle {
+                            height: 64px;
+                            background: index == selected-index ? #d0e8ff : (touch.has-hover ? #eee : transparent);
+                            border-radius: 4px;
+
+                            touch := TouchArea {
+                                clicked => {
+                                    selected-index = index;
+                                    select-contact(index);
+                                }
+                            }
+
+                            HorizontalBox {
+                                padding: 10px;
+
+                                VerticalBox {
+                                    alignment: start;
+                                    spacing: 2px;
+
+                                    Text {
+                                        text: contact.name;
+                                        font-weight: 600;
+                                        font-size: 14px;
+                                        color: #222;
+                                    }
+                                    Text {
+                                        text: contact.email;
+                                        font-size: 12px;
+                                        color: #555;
+                                    }
+                                    Text {
+                                        text: contact.phone;
+                                        font-size: 11px;
+                                        color: #888;
+                                    }
+                                }
+
+                                Rectangle { }
+
+                                Rectangle {
+                                    width: 70px;
+                                    height: 24px;
+                                    background: contact.status == "Active" ? #4caf50 :
+                                               contact.status == "Lead" ? #ff9800 : #9e9e9e;
+                                    border-radius: 12px;
+
+                                    Text {
+                                        text: contact.status;
+                                        color: white;
+                                        font-size: 11px;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            VerticalBox {
+                width: 45%;
+                padding-left: 15px;
+
+                Text {
+                    text: selected-index >= 0 ? "Edit Contact" : "New Contact";
+                    font-size: 16px;
+                    font-weight: 600;
+                }
+
+                GroupBox {
+                    title: "Details";
+
+                    VerticalBox {
+                        spacing: 12px;
+
+                        VerticalBox {
+                            spacing: 4px;
+                            Text { text: "Name"; font-size: 12px; color: #666; }
+                            LineEdit {
+                                placeholder-text: "Enter name";
+                                text <=> form-name;
+                            }
+                        }
+
+                        VerticalBox {
+                            spacing: 4px;
+                            Text { text: "Email"; font-size: 12px; color: #666; }
+                            LineEdit {
+                                placeholder-text: "Enter email";
+                                text <=> form-email;
+                            }
+                        }
+
+                        VerticalBox {
+                            spacing: 4px;
+                            Text { text: "Phone"; font-size: 12px; color: #666; }
+                            LineEdit {
+                                placeholder-text: "Enter phone";
+                                text <=> form-phone;
+                            }
+                        }
+
+                        VerticalBox {
+                            spacing: 4px;
+                            Text { text: "Status"; font-size: 12px; color: #666; }
+                            ComboBox {
+                                model: ["Active", "Lead", "Inactive"];
+                                current-index <=> form-status-index;
+                            }
+                        }
+                    }
+                }
+
+                HorizontalBox {
+                    spacing: 8px;
+                    padding-top: 12px;
+
+                    Button {
+                        text: selected-index >= 0 ? "Update" : "Add";
+                        primary: true;
+                        clicked => {
+                            if (selected-index >= 0) {
+                                update-contact(selected-index);
+                            } else {
+                                add-contact();
+                            }
+                        }
+                    }
+
+                    Button {
+                        text: "Clear";
+                        clicked => {
+                            form-name = "";
+                            form-email = "";
+                            form-phone = "";
+                            form-status-index = 0;
+                            selected-index = -1;
+                        }
+                    }
+
+                    Button {
+                        text: "Delete";
+                        enabled: selected-index >= 0;
+                        clicked => {
+                            delete-contact(selected-index);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

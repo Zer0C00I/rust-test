@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Slint CRM
+Comment=Customer Relationship Management
+Exec=slint-crm
+Icon=address-book
+Terminal=false
+Type=Application
+Categories=Office;

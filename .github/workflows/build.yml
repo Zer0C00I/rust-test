@@ -1,0 +1,114 @@
+name: Build Packages
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libfontconfig1-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev \
+            libwayland-dev \
+            libssl-dev \
+            dpkg-dev
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
+
+      - name: Build release
+        run: cargo build --release
+
+      - name: Create .deb package
+        run: cargo deb --no-build
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: target/debian/*.deb
+
+  build-freebsd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build on FreeBSD
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: "14.2"
+          usesh: true
+          prepare: |
+            pkg install -y curl git pkgconf libxcb libxkbcommon wayland fontconfig
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          run: |
+            . $HOME/.cargo/env
+            cargo build --release
+
+            # Create FreeBSD package structure
+            mkdir -p pkg/usr/local/bin
+            mkdir -p pkg/usr/local/share/applications
+            cp target/release/slint-crm pkg/usr/local/bin/
+
+            # Create manifest
+            cat > +MANIFEST <<EOF
+            name: slint-crm
+            version: "0.1.0"
+            origin: local/slint-crm
+            comment: CRM application built with Slint
+            maintainer: maintainer@example.com
+            prefix: /usr/local
+            desc: Customer relationship management application
+            EOF
+
+            # Create package
+            pkg create -M +MANIFEST -r pkg -o .
+
+      - name: Copy artifact from VM
+        run: |
+          mkdir -p freebsd-pkg
+          cp slint-crm-*.pkg freebsd-pkg/ 2>/dev/null || echo "Package created"
+
+      - name: Upload FreeBSD package
+        uses: actions/upload-artifact@v4
+        with:
+          name: freebsd-package
+          path: "*.pkg"
+          if-no-files-found: ignore
+
+  release:
+    needs: [build-linux, build-freebsd]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            deb-package/*.deb
+            freebsd-package/*.pkg
+          generate_release_notes: true
