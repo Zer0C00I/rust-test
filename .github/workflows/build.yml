@@ -30,7 +30,7 @@ jobs:
             dpkg-dev
 
       - name: Setup Rust
-        uses: dtolnay/rust-action@stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-deb
         run: cargo install cargo-deb
@@ -76,6 +76,7 @@ jobs:
             origin: local/slint-crm
             comment: CRM application built with Slint
             maintainer: maintainer@example.com
+            www: https://github.com/Zer0C00I/rust-test
             prefix: /usr/local
             desc: Customer relationship management application
             EOF
