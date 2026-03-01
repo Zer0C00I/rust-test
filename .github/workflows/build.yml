@@ -94,16 +94,16 @@ jobs:
             VERSION=$(grep '^version' Cargo.toml | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
             ARCH=$(uname -m)
 
-            cat > +MANIFEST << EOF
-name: slint-crm
-version: "${VERSION}"
-origin: local/slint-crm
-comment: CRM application built with Slint
-maintainer: maintainer@example.com
-www: https://github.com/Zer0C00I/slint-crm
-prefix: /usr/local
-desc: Customer relationship management application
-EOF
+            {
+              echo "name: slint-crm"
+              echo "version: \"${VERSION}\""
+              echo "origin: local/slint-crm"
+              echo "comment: CRM application built with Slint"
+              echo "maintainer: maintainer@example.com"
+              echo "www: https://github.com/Zer0C00I/slint-crm"
+              echo "prefix: /usr/local"
+              echo "desc: Customer relationship management application"
+            } > +MANIFEST
 
             find pkg/usr/local -type f | sed 's|pkg/usr/local/||' > PLIST
             pkg create -M +MANIFEST -p PLIST -r pkg -o .
