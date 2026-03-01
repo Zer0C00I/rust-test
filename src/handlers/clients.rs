@@ -1,6 +1,6 @@
 use slint::ComponentHandle;
 
-use crate::{db, refresh, AppState, MainWindow};
+use crate::{AppState, MainWindow, db, refresh};
 
 pub(super) fn register(window: &MainWindow, state: AppState) {
     let window_weak = window.as_weak();

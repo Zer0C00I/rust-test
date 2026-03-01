@@ -69,14 +69,16 @@ pub fn dashboard(window: &MainWindow, db: &db::Db) {
     let rows = db.get_active_client_programs().unwrap_or_default();
     let model: Vec<DashboardCardData> = rows
         .iter()
-        .map(|(cp, client_name, program_name, trainer_name)| DashboardCardData {
-            id: cp.id as i32,
-            client_name: client_name.clone().into(),
-            program_name: program_name.clone().into(),
-            trainer_name: trainer_name.clone().into(),
-            start_date: cp.start_date.clone().into(),
-            status: cp.status.clone().into(),
-        })
+        .map(
+            |(cp, client_name, program_name, trainer_name)| DashboardCardData {
+                id: cp.id as i32,
+                client_name: client_name.clone().into(),
+                program_name: program_name.clone().into(),
+                trainer_name: trainer_name.clone().into(),
+                start_date: cp.start_date.clone().into(),
+                status: cp.status.clone().into(),
+            },
+        )
         .collect();
     window.set_active_programs(Rc::new(slint::VecModel::from(model)).into());
 }
@@ -204,7 +206,7 @@ pub fn schedule(window: &MainWindow, db: &db::Db, week_start: &str) {
             WeekDayData {
                 label: label_en.into(),
                 date: d.format("%Y-%m-%d").to_string().into(),
-                is_today: is_today,
+                is_today,
                 day_index: day_idx,
             }
         })
@@ -218,9 +220,8 @@ pub fn schedule(window: &MainWindow, db: &db::Db, week_start: &str) {
     );
 
     // Hour labels 06:00..21:00
-    let hour_labels: Vec<slint::SharedString> = (6..=21)
-        .map(|h| format!("{:02}:00", h).into())
-        .collect();
+    let hour_labels: Vec<slint::SharedString> =
+        (6..=21).map(|h| format!("{:02}:00", h).into()).collect();
 
     // Fetch appointments
     let client_rows = db.get_clients().unwrap_or_default();
@@ -231,8 +232,7 @@ pub fn schedule(window: &MainWindow, db: &db::Db, week_start: &str) {
     let appointments: Vec<AppointmentData> = appts
         .iter()
         .map(|(a, client_name)| {
-            let appt_date = NaiveDate::parse_from_str(&a.date, "%Y-%m-%d")
-                .unwrap_or(start_date);
+            let appt_date = NaiveDate::parse_from_str(&a.date, "%Y-%m-%d").unwrap_or(start_date);
             let day_index = (appt_date - start_date).num_days() as i32;
 
             let (hour, minute) = parse_time(&a.time);

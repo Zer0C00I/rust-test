@@ -1,4 +1,4 @@
-use rusqlite::{params, Result};
+use rusqlite::{Result, params};
 
 use super::Db;
 
@@ -44,9 +44,9 @@ impl Db {
     }
 
     pub fn get_trainers(&self) -> Result<Vec<Trainer>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, name, phone, specialization FROM trainers ORDER BY name",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, name, phone, specialization FROM trainers ORDER BY name")?;
         let rows = stmt.query_map([], |row| {
             Ok(Trainer {
                 id: row.get(0)?,

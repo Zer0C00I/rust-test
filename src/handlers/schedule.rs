@@ -1,6 +1,6 @@
 use slint::ComponentHandle;
 
-use crate::{refresh, AppState, MainWindow};
+use crate::{AppState, MainWindow, refresh};
 
 pub(super) fn register(window: &MainWindow, state: AppState) {
     let window_weak = window.as_weak();
@@ -98,12 +98,7 @@ pub(super) fn register(window: &MainWindow, state: AppState) {
         let ws = week_start.borrow().clone();
         if let Some(win) = window_weak.upgrade() {
             refresh::schedule(&win, &db, &ws);
-            refresh::visits(
-                &win,
-                &db,
-                *current_year.borrow(),
-                *current_month.borrow(),
-            );
+            refresh::visits(&win, &db, *current_year.borrow(), *current_month.borrow());
         }
     });
 

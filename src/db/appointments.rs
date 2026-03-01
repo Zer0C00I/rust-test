@@ -1,4 +1,4 @@
-use rusqlite::{params, Result};
+use rusqlite::{Result, params};
 
 use super::Db;
 
@@ -10,7 +10,7 @@ pub struct Appointment {
     pub time: String,
     pub duration_minutes: i64,
     pub notes: String,
-    pub status: String,   // "pending" | "attended" | "no-show"
+    pub status: String, // "pending" | "attended" | "no-show"
     pub amount: f64,
 }
 

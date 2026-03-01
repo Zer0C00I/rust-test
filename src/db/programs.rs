@@ -1,4 +1,4 @@
-use rusqlite::{params, Result};
+use rusqlite::{Result, params};
 
 use super::Db;
 
@@ -64,14 +64,10 @@ impl Db {
             "DELETE FROM client_programs WHERE program_id=?1",
             params![id],
         )?;
-        self.conn.execute(
-            "DELETE FROM exercises WHERE program_id=?1",
-            params![id],
-        )?;
-        self.conn.execute(
-            "DELETE FROM training_programs WHERE id=?1",
-            params![id],
-        )?;
+        self.conn
+            .execute("DELETE FROM exercises WHERE program_id=?1", params![id])?;
+        self.conn
+            .execute("DELETE FROM training_programs WHERE id=?1", params![id])?;
         Ok(())
     }
 

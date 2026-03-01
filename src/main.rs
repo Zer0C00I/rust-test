@@ -22,14 +22,17 @@ pub struct AppState {
 }
 
 fn main() {
-    
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .expect("Failed to build tokio runtime");
     let _rt_guard = rt.enter();
 
-    let window = MainWindow::new().unwrap();
+    let window = MainWindow::new().unwrap_or_else(|e| {
+        eprintln!("Fatal: failed to create window: {e}");
+        eprintln!("Make sure a display server (X11 or Wayland) is running and all required graphics libraries are installed.");
+        std::process::exit(1);
+    });
     let now = chrono::Local::now();
 
     // Compute the Monday of the current week (ISO week Mon=0)
@@ -67,5 +70,8 @@ fn main() {
     }
 
     handlers::register_all(&window, state);
-    window.run().unwrap();
+    if let Err(e) = window.run() {
+        eprintln!("Fatal: runtime error: {e}");
+        std::process::exit(1);
+    }
 }

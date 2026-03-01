@@ -1,7 +1,7 @@
-use genpdf::{Document, Element, Alignment, Size};
-use genpdf::elements::{Paragraph, Break, PaddedElement, TableLayout, StyledElement};
+use genpdf::elements::{Break, PaddedElement, Paragraph, StyledElement, TableLayout};
 use genpdf::fonts::{FontData, FontFamily};
 use genpdf::style::{self, Style};
+use genpdf::{Alignment, Document, Element, Size};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -58,7 +58,11 @@ fn build_doc(db: &Db, ukrainian: bool, cp_id: i64) -> Result<Document, Box<dyn s
     let font_family = get_fonts()?;
     let mut doc = Document::new(font_family);
 
-    let title = if ukrainian { "Тренувальний звіт" } else { "Training Report" };
+    let title = if ukrainian {
+        "Тренувальний звіт"
+    } else {
+        "Training Report"
+    };
     doc.set_title(title);
     doc.set_minimal_conformance();
     doc.set_paper_size(Size::new(210, 297)); // A4
@@ -74,7 +78,11 @@ fn build_doc(db: &Db, ukrainian: bool, cp_id: i64) -> Result<Document, Box<dyn s
     let title_style = Style::from(style::Effect::Bold).with_font_size(16);
 
     // Title
-    doc.push(Paragraph::new(title).aligned(Alignment::Center).styled(title_style));
+    doc.push(
+        Paragraph::new(title)
+            .aligned(Alignment::Center)
+            .styled(title_style),
+    );
     let date_str = chrono::Local::now().format("%Y-%m-%d %H:%M").to_string();
     doc.push(Paragraph::new(&date_str).aligned(Alignment::Center));
     doc.push(Break::new(1.5));
@@ -86,7 +94,11 @@ fn build_doc(db: &Db, ukrainian: bool, cp_id: i64) -> Result<Document, Box<dyn s
         .collect();
 
     if programs.is_empty() {
-        let msg = if ukrainian { "Немає активних програм." } else { "No active programs." };
+        let msg = if ukrainian {
+            "Немає активних програм."
+        } else {
+            "No active programs."
+        };
         doc.push(Paragraph::new(msg));
         return Ok(doc);
     }
@@ -95,19 +107,24 @@ fn build_doc(db: &Db, ukrainian: bool, cp_id: i64) -> Result<Document, Box<dyn s
 
     for (idx, (cp, client_name, program_name, trainer_name)) in programs.iter().enumerate() {
         // Client + Program header
-        doc.push(Paragraph::new(format!(
-            "{}. {} — {}", idx + 1, client_name, program_name
-        )).styled(bold));
+        doc.push(
+            Paragraph::new(format!("{}. {} — {}", idx + 1, client_name, program_name)).styled(bold),
+        );
 
-        doc.push(Paragraph::new(format!(
-            "{}: {}   |   {}: {}",
-            t.trainer, trainer_name, t.start, cp.start_date
-        )).styled(small));
+        doc.push(
+            Paragraph::new(format!(
+                "{}: {}   |   {}: {}",
+                t.trainer, trainer_name, t.start, cp.start_date
+            ))
+            .styled(small),
+        );
 
         doc.push(Break::new(0.5));
 
         // Check-ins as simple text lines
-        let checkins = db.get_checkins_for_client_program(cp.id).unwrap_or_default();
+        let checkins = db
+            .get_checkins_for_client_program(cp.id)
+            .unwrap_or_default();
         let n_weeks = checkins.len().min(10);
 
         if !checkins.is_empty() {
@@ -137,9 +154,11 @@ fn build_doc(db: &Db, ukrainian: bool, cp_id: i64) -> Result<Document, Box<dyn s
 
             // name(5) + sets(1) + reps(1) + [weight(1)] + N week cols(1 each) + notes(3)
             let mut col_widths: Vec<usize> = vec![5, 1, 1];
-            if has_weight { col_widths.push(1); }
+            if has_weight {
+                col_widths.push(1);
+            }
             if n_weeks > 0 {
-                for _ in 0..n_weeks { col_widths.push(1); }
+                col_widths.extend(std::iter::repeat_n(1, n_weeks));
             } else {
                 col_widths.push(2); // fallback: single done column
             }
@@ -153,7 +172,9 @@ fn build_doc(db: &Db, ukrainian: bool, cp_id: i64) -> Result<Document, Box<dyn s
             hr.push_element(cell(t.exercise, small_bold));
             hr.push_element(cell_center(t.sets, small_bold));
             hr.push_element(cell_center(t.reps, small_bold));
-            if has_weight { hr.push_element(cell_center(t.weight, small_bold)); }
+            if has_weight {
+                hr.push_element(cell_center(t.weight, small_bold));
+            }
             if n_weeks > 0 {
                 for i in 0..n_weeks {
                     let label = format!("{}{}", t.week_short, i + 1);
@@ -163,7 +184,7 @@ fn build_doc(db: &Db, ukrainian: bool, cp_id: i64) -> Result<Document, Box<dyn s
                 hr.push_element(cell_center(t.done, small_bold));
             }
             hr.push_element(cell(t.notes, small_bold));
-            hr.push().unwrap();
+            hr.push()?;
 
             // Exercise rows — one checkbox per week based on check-in completion
             for ex in &exercises {
@@ -172,12 +193,19 @@ fn build_doc(db: &Db, ukrainian: bool, cp_id: i64) -> Result<Document, Box<dyn s
                 row.push_element(cell_center(&ex.sets.to_string(), small));
                 row.push_element(cell_center(&ex.reps.to_string(), small));
                 if has_weight {
-                    let w = if ex.weight > 0 { format!("{}kg", ex.weight) } else { String::new() };
+                    let w = if ex.weight > 0 {
+                        format!("{}kg", ex.weight)
+                    } else {
+                        String::new()
+                    };
                     row.push_element(cell_center(&w, small));
                 }
                 if n_weeks > 0 {
                     for ci in &checkins[..n_weeks] {
-                        let done = week_done.get(&(ex.exercise_id, ci.id)).copied().unwrap_or(false);
+                        let done = week_done
+                            .get(&(ex.exercise_id, ci.id))
+                            .copied()
+                            .unwrap_or(false);
                         let mark = if done { "☑" } else { "☐" };
                         row.push_element(cell_center(mark, small));
                     }
@@ -186,7 +214,7 @@ fn build_doc(db: &Db, ukrainian: bool, cp_id: i64) -> Result<Document, Box<dyn s
                     row.push_element(cell_center(mark, small));
                 }
                 row.push_element(cell(&ex.notes, small));
-                row.push().unwrap();
+                row.push()?;
             }
 
             doc.push(PaddedElement::new(table, genpdf::Margins::trbl(1, 0, 1, 4)));
@@ -212,7 +240,9 @@ fn cell(text: &str, style: Style) -> PaddedElement<StyledElement<Paragraph>> {
 
 fn cell_center(text: &str, style: Style) -> PaddedElement<StyledElement<Paragraph>> {
     PaddedElement::new(
-        Paragraph::new(text).aligned(Alignment::Center).styled(style),
+        Paragraph::new(text)
+            .aligned(Alignment::Center)
+            .styled(style),
         genpdf::Margins::trbl(1, 2, 1, 2),
     )
 }
@@ -277,7 +307,11 @@ pub fn save_pdf(db: &Db, ukrainian: bool, cp_id: i64) -> Result<(), Box<dyn std:
     );
 
     let path = rfd::FileDialog::new()
-        .set_title(if ukrainian { "Зберегти PDF" } else { "Save PDF" })
+        .set_title(if ukrainian {
+            "Зберегти PDF"
+        } else {
+            "Save PDF"
+        })
         .set_file_name(&default_name)
         .add_filter("PDF", &["pdf"])
         .save_file();
@@ -311,7 +345,9 @@ pub fn print_pdf(db: &Db, ukrainian: bool, cp_id: i64) -> Result<(), Box<dyn std
 }
 
 async fn portal_print(path: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use ashpd::desktop::print::{PageSetup, PreparePrintOptions, PrintOptions, PrintProxy, Settings};
+    use ashpd::desktop::print::{
+        PageSetup, PreparePrintOptions, PrintOptions, PrintProxy, Settings,
+    };
 
     let proxy = PrintProxy::new().await?;
 

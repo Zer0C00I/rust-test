@@ -1,4 +1,4 @@
-use rusqlite::{params, Result};
+use rusqlite::{Result, params};
 
 use super::Db;
 

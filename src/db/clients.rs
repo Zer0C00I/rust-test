@@ -1,4 +1,4 @@
-use rusqlite::{params, Result};
+use rusqlite::{Result, params};
 
 use super::Db;
 
@@ -93,12 +93,7 @@ impl Db {
         rows.collect()
     }
 
-    pub fn assign_program(
-        &self,
-        client_id: i64,
-        program_id: i64,
-        start_date: &str,
-    ) -> Result<i64> {
+    pub fn assign_program(&self, client_id: i64, program_id: i64, start_date: &str) -> Result<i64> {
         self.conn.execute(
             "INSERT INTO client_programs (client_id, program_id, active, start_date, status, end_date) \
              VALUES (?1, ?2, 1, ?3, 'active', '')",
