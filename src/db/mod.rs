@@ -15,13 +15,28 @@ pub struct Db {
 
 impl Db {
     pub fn open() -> Result<Self> {
-        let conn = Connection::open("crm.db")?;
+        let path = db_path();
+        let conn = Connection::open(&path)?;
         let db = Db { conn };
         db.create_tables()?;
         db.run_migrations()?;
         Ok(db)
     }
+}
 
+fn db_path() -> std::path::PathBuf {
+    let data_dir = std::env::var_os("XDG_DATA_HOME")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            let home = std::env::var_os("HOME").unwrap_or_else(|| "/tmp".into());
+            std::path::PathBuf::from(home).join(".local/share")
+        })
+        .join("slint-crm");
+    std::fs::create_dir_all(&data_dir).ok();
+    data_dir.join("crm.db")
+}
+
+impl Db {
     fn run_migrations(&self) -> Result<()> {
         let has_status = self
             .conn
