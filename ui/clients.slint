@@ -1,0 +1,549 @@
+import { ScrollView, LineEdit, ComboBox } from "std-widgets.slint";
+import { Theme } from "styles.slint";
+import { Tr } from "translations.slint";
+import { TrainerData } from "trainers.slint";
+import { ProgramData } from "programs.slint";
+
+export struct ClientData {
+    id: int,
+    name: string,
+    phone: string,
+    email: string,
+    notes: string,
+    trainer-id: int,
+    trainer-idx: int,
+    trainer-name: string,
+}
+
+export struct ClientProgramData {
+    id: int,
+    program-name: string,
+    status: string,
+    start-date: string,
+}
+
+export component ClientsPage inherits Rectangle {
+    background: Theme.bg;
+
+    in property <[ClientData]> clients;
+    in property <[TrainerData]> trainers;
+    in property <[ProgramData]> programs;
+    in property <[ClientProgramData]> selected-client-programs;
+
+    in-out property <int> editing-id: -1;
+    in-out property <string> form-name;
+    in-out property <string> form-phone;
+    in-out property <string> form-email;
+    in-out property <string> form-notes;
+    in-out property <int> form-trainer-idx: 0;
+    in-out property <bool> show-form: false;
+    in-out property <int> selected-client-id: -1;
+    in-out property <int> assign-program-idx: 0;
+
+    callback add-client(string, string, string, string, int);
+    callback update-client(int, string, string, string, string, int);
+    callback delete-client(int);
+    callback select-client(int);
+    callback assign-program(int, int);
+    callback pause-program(int);
+    callback resume-program(int);
+    callback complete-program(int);
+    callback cancel-program(int);
+
+    pure function trainer-names() -> [string] {
+        return ["None"];
+    }
+
+    VerticalLayout {
+        padding: Theme.pad-lg;
+        spacing: Theme.pad-md;
+
+        HorizontalLayout {
+            Text {
+                text: Tr.clients-title;
+                font-size: Theme.font-xl;
+                color: Theme.text;
+                vertical-alignment: center;
+            }
+            Rectangle { }
+            Rectangle {
+                width: 160px;
+                height: 36px;
+                border-radius: 6px;
+                background: show-form ? Theme.danger : Theme.primary;
+
+                Text {
+                    text: show-form ? Tr.cancel : Tr.add-client;
+                    font-size: Theme.font-md;
+                    color: Theme.bg;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    clicked => {
+                        if (show-form) {
+                            show-form = false;
+                            editing-id = -1;
+                        } else {
+                            form-name = "";
+                            form-phone = "";
+                            form-email = "";
+                            form-notes = "";
+                            form-trainer-idx = 0;
+                            editing-id = -1;
+                            show-form = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if show-form: Rectangle {
+            background: Theme.surface;
+            border-radius: 8px;
+            height: 250px;
+
+            VerticalLayout {
+                padding: Theme.pad-md;
+                spacing: Theme.pad-sm;
+
+                Text {
+                    text: editing-id >= 0 ? Tr.edit-client : Tr.new-client;
+                    font-size: Theme.font-lg;
+                    color: Theme.primary;
+                }
+
+                HorizontalLayout {
+                    spacing: Theme.pad-sm;
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: Tr.name-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit {
+                            text <=> form-name;
+                            placeholder-text: Tr.full-name-placeholder;
+                            height: 32px;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: Tr.phone-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit {
+                            text <=> form-phone;
+                            placeholder-text: Tr.phone-placeholder;
+                            height: 32px;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: Tr.email-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit {
+                            text <=> form-email;
+                            placeholder-text: Tr.email-placeholder;
+                            height: 32px;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: Theme.pad-sm;
+
+                    VerticalLayout {
+                        horizontal-stretch: 2;
+                        spacing: 4px;
+                        Text { text: Tr.notes-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit {
+                            text <=> form-notes;
+                            placeholder-text: Tr.notes-placeholder;
+                            height: 32px;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: Tr.trainer-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        // Trainer index: 0 = None, 1+ = trainer index
+                        HorizontalLayout {
+                            height: 32px;
+                            spacing: 4px;
+
+                            Rectangle {
+                                border-radius: 4px;
+                                background: Theme.input-bg;
+                                horizontal-stretch: 1;
+
+                                Text {
+                                    text: form-trainer-idx == 0 ? Tr.none-label :
+                                          (form-trainer-idx - 1 < trainers.length ? trainers[form-trainer-idx - 1].name : Tr.none-label);
+                                    font-size: Theme.font-md;
+                                    color: Theme.text;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: center;
+                                }
+                            }
+
+                            Rectangle {
+                                width: 28px;
+                                border-radius: 4px;
+                                background: Theme.primary;
+
+                                Text { text: "<"; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; font-size: Theme.font-md; }
+                                TouchArea {
+                                    clicked => {
+                                        if (form-trainer-idx > 0) {
+                                            form-trainer-idx -= 1;
+                                        }
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                width: 28px;
+                                border-radius: 4px;
+                                background: Theme.primary;
+
+                                Text { text: ">"; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; font-size: Theme.font-md; }
+                                TouchArea {
+                                    clicked => {
+                                        if (form-trainer-idx < trainers.length) {
+                                            form-trainer-idx += 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 100px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: Theme.primary;
+
+                    Text {
+                        text: editing-id >= 0 ? Tr.update : Tr.save;
+                        font-size: Theme.font-md;
+                        color: Theme.bg;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    TouchArea {
+                        clicked => {
+                            // trainer-idx: 0=None => pass -1, 1+ => trainer index
+                            if (editing-id >= 0) {
+                                root.update-client(editing-id, form-name, form-phone, form-email, form-notes, form-trainer-idx);
+                            } else {
+                                root.add-client(form-name, form-phone, form-email, form-notes, form-trainer-idx);
+                            }
+                            show-form = false;
+                            editing-id = -1;
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: Theme.pad-md;
+
+            // Client list
+            VerticalLayout {
+                horizontal-stretch: 2;
+                spacing: 4px;
+
+                Rectangle {
+                    background: Theme.surface;
+                    border-radius: 6px;
+                    height: 40px;
+
+                    HorizontalLayout {
+                        padding-left: Theme.pad-md;
+                        padding-right: Theme.pad-md;
+
+                        Text { text: Tr.name-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                        Text { text: Tr.phone-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                        Text { text: Tr.email-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                        Text { text: Tr.trainer-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                        Text { text: Tr.actions-label; font-size: Theme.font-sm; color: Theme.text-dim; width: 140px; vertical-alignment: center; horizontal-alignment: center; }
+                    }
+                }
+
+                ScrollView {
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 4px;
+
+                        for client[idx] in clients: Rectangle {
+                            background: selected-client-id == client.id ? Theme.surface-hover : Theme.surface;
+                            border-radius: 6px;
+                            height: 44px;
+
+                            TouchArea {
+                                clicked => {
+                                    selected-client-id = client.id;
+                                    root.select-client(client.id);
+                                }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: Theme.pad-md;
+                                padding-right: Theme.pad-md;
+
+                                Text { text: client.name; font-size: Theme.font-md; color: Theme.text; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                                Text { text: client.phone; font-size: Theme.font-md; color: Theme.text; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                                Text { text: client.email; font-size: Theme.font-md; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                                Text { text: client.trainer-name == "" ? Tr.none-label : client.trainer-name; font-size: Theme.font-md; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+
+                                VerticalLayout {
+                                    width: 140px;
+                                    alignment: center;
+
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        alignment: center;
+
+                                        Rectangle {
+                                            width: 56px;
+                                            height: 28px;
+                                            border-radius: 4px;
+                                            background: Theme.primary;
+
+                                            Text { text: Tr.edit; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                            TouchArea {
+                                                clicked => {
+                                                    form-name = client.name;
+                                                    form-phone = client.phone;
+                                                    form-email = client.email;
+                                                    form-notes = client.notes;
+                                                    form-trainer-idx = client.trainer-idx;
+                                                    editing-id = client.id;
+                                                    show-form = true;
+                                                }
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            width: 56px;
+                                            height: 28px;
+                                            border-radius: 4px;
+                                            background: Theme.danger;
+
+                                            Text { text: Tr.delete; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                            TouchArea {
+                                                clicked => {
+                                                    root.delete-client(client.id);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Client detail panel (programs)
+            if selected-client-id >= 0: Rectangle {
+                horizontal-stretch: 1;
+                clip: true;
+
+                VerticalLayout {
+                spacing: Theme.pad-sm;
+
+                Text {
+                    text: Tr.programs-header;
+                    font-size: Theme.font-lg;
+                    color: Theme.primary;
+                }
+
+                // Assign program control
+                if programs.length > 0: Rectangle {
+                    background: Theme.surface;
+                    border-radius: 6px;
+                    height: 44px;
+
+                    HorizontalLayout {
+                        padding-left: Theme.pad-sm;
+                        padding-right: Theme.pad-sm;
+                        spacing: 8px;
+
+                        Rectangle {
+                            border-radius: 4px;
+                            background: Theme.input-bg;
+                            horizontal-stretch: 1;
+
+                            Text {
+                                text: assign-program-idx < programs.length ? programs[assign-program-idx].name : "";
+                                font-size: Theme.font-md;
+                                color: Theme.text;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                                overflow: elide;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 28px;
+                            border-radius: 4px;
+                            background: Theme.primary;
+
+                            Text { text: "<"; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea {
+                                clicked => {
+                                    if (assign-program-idx > 0) {
+                                        assign-program-idx -= 1;
+                                    }
+                                }
+                            }
+                        }
+                        Rectangle {
+                            width: 28px;
+                            border-radius: 4px;
+                            background: Theme.primary;
+
+                            Text { text: ">"; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea {
+                                clicked => {
+                                    if (assign-program-idx < programs.length - 1) {
+                                        assign-program-idx += 1;
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            width: 80px;
+                            border-radius: 4px;
+                            background: Theme.success;
+
+                            Text { text: Tr.assign; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea {
+                                clicked => {
+                                    root.assign-program(selected-client-id, assign-program-idx);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ScrollView {
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 4px;
+
+                        for cp[idx] in selected-client-programs: Rectangle {
+                            background: Theme.surface;
+                            border-radius: 6px;
+                            height: 40px;
+
+                            HorizontalLayout {
+                                padding-left: Theme.pad-sm;
+                                padding-right: Theme.pad-sm;
+                                spacing: 8px;
+
+                                Rectangle {
+                                    width: 8px;
+                                    height: 8px;
+                                    border-radius: 4px;
+                                    background: cp.status == "active" ? Theme.success :
+                                                cp.status == "paused" ? Theme.warning :
+                                                cp.status == "completed" ? Theme.info :
+                                                Theme.text-dim;
+                                }
+
+                                Text {
+                                    text: cp.program-name;
+                                    font-size: Theme.font-md;
+                                    color: Theme.text;
+                                    horizontal-stretch: 1;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+
+                                Text {
+                                    text: cp.start-date;
+                                    font-size: Theme.font-sm;
+                                    color: Theme.text-dim;
+                                    vertical-alignment: center;
+                                }
+
+                                // Status badge for completed/cancelled
+                                if cp.status == "completed" || cp.status == "cancelled": Rectangle {
+                                    width: 80px;
+                                    height: 24px;
+                                    border-radius: 4px;
+                                    background: cp.status == "completed" ? Theme.info : Theme.text-dim;
+
+                                    Text {
+                                        text: cp.status == "completed" ? Tr.status-completed : Tr.status-cancelled;
+                                        font-size: Theme.font-sm;
+                                        color: Theme.bg;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+
+                                // Active: Pause + Complete
+                                if cp.status == "active": HorizontalLayout {
+                                    spacing: 4px;
+
+                                    Rectangle {
+                                        width: 60px;
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: Theme.warning;
+
+                                        Text { text: Tr.pause; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                        TouchArea { clicked => { root.pause-program(cp.id); } }
+                                    }
+
+                                    Rectangle {
+                                        width: 70px;
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: Theme.info;
+
+                                        Text { text: Tr.complete-btn; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                        TouchArea { clicked => { root.complete-program(cp.id); } }
+                                    }
+                                }
+
+                                // Paused: Resume + Cancel
+                                if cp.status == "paused": HorizontalLayout {
+                                    spacing: 4px;
+
+                                    Rectangle {
+                                        width: 70px;
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: Theme.success;
+
+                                        Text { text: Tr.resume; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                        TouchArea { clicked => { root.resume-program(cp.id); } }
+                                    }
+
+                                    Rectangle {
+                                        width: 70px;
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: Theme.danger;
+
+                                        Text { text: Tr.cancel-btn; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                        TouchArea { clicked => { root.cancel-program(cp.id); } }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            }
+        }
+    }
+}

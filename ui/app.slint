@@ -1,210 +1,386 @@
-import { Button, VerticalBox, HorizontalBox, LineEdit, ListView, ComboBox, GroupBox } from "std-widgets.slint";
+import { Theme } from "styles.slint";
+import { Tr } from "translations.slint";
+import { DashboardPage, DashboardCardData, CheckInData, ExerciseCompletionData } from "dashboard.slint";
+// re-export exercise-week-done type is [bool], no extra struct needed
+import { ClientsPage, ClientData, ClientProgramData } from "clients.slint";
+import { ProgramsPage, ProgramData, ExerciseData } from "programs.slint";
+import { TrainersPage, TrainerData } from "trainers.slint";
+import { FinancesPage, VisitData } from "finances.slint";
+import { SchedulePage, WeekDayData, AppointmentData } from "schedule.slint";
 
-export struct Contact {
-    id: int,
-    name: string,
-    email: string,
-    phone: string,
-    status: string,
-}
+export { Tr, DashboardCardData, CheckInData, ExerciseCompletionData, ClientData, ClientProgramData, ProgramData, ExerciseData, TrainerData, VisitData, WeekDayData, AppointmentData }
 
-export component App inherits Window {
-    title: "CRM - Customer Management";
-    min-width: 800px;
-    min-height: 500px;
+export component MainWindow inherits Window {
+    title: Tr.window-title;
+    preferred-width: 1100px;
+    preferred-height: 700px;
+    background: Theme.bg;
 
-    in property <[Contact]> contacts;
-    in-out property <int> selected-index: -1;
-    in-out property <string> search-text: "";
+    in-out property <int> current-tab: 0;
 
-    in-out property <string> form-name: "";
-    in-out property <string> form-email: "";
-    in-out property <string> form-phone: "";
-    in-out property <int> form-status-index: 0;
+    // Data properties
+    in property <[TrainerData]> trainers;
+    in property <[ProgramData]> programs;
+    in property <[ClientData]> clients;
+    in property <[DashboardCardData]> active-programs;
+    in property <[CheckInData]> checkins;
+    in property <[ExerciseCompletionData]> exercise-completions;
+    in property <[bool]> exercise-week-done;
+    in property <[ClientProgramData]> selected-client-programs;
+    in property <[ExerciseData]> exercises;
 
-    callback add-contact();
-    callback delete-contact(int);
-    callback update-contact(int);
-    callback search-changed(string);
-    callback select-contact(int);
+    // Finances data
+    in property <[VisitData]> visits;
+    in property <float> monthly-total: 0;
+    in-out property <int> current-month: 1;
+    in-out property <int> current-year: 2026;
 
-    VerticalBox {
-        HorizontalBox {
-            height: 40px;
-            padding: 5px;
+    // Schedule data
+    in property <[WeekDayData]> week-days;
+    in property <[AppointmentData]> appointments;
+    in property <[string]> hour-labels;
+    in-out property <string> week-label;
 
-            Text { text: "Search:"; vertical-alignment: center; }
-            LineEdit {
-                placeholder-text: "Search contacts...";
-                text <=> search-text;
-                edited => { search-changed(self.text); }
+    // Trainer callbacks
+    callback add-trainer(string, string, string);
+    callback update-trainer(int, string, string, string);
+    callback delete-trainer(int);
+
+    // Program callbacks
+    callback add-program(string, string, int);
+    callback update-program(int, string, string, int);
+    callback delete-program(int);
+    callback select-program(int);
+
+    // Exercise callbacks
+    callback add-exercise(int, string, int, int, int, string);
+    callback update-exercise(int, string, int, int, int, string);
+    callback delete-exercise(int);
+
+    // Client callbacks
+    callback add-client(string, string, string, string, int);
+    callback update-client(int, string, string, string, string, int);
+    callback delete-client(int);
+    callback select-client(int);
+    callback assign-program(int, int);
+    callback pause-program(int);
+    callback resume-program(int);
+    callback complete-program(int);
+    callback cancel-program(int);
+
+    // Dashboard callbacks
+    callback expand-card(int);
+    callback toggle-checkin(int);
+    callback toggle-exercise-week(int, int, int); // cp-id, exercise-id, checkin-id
+
+    // Finances callbacks
+    callback add-visit(int, string, float, string);
+    callback update-visit(int, int, string, float, string);
+    callback delete-visit(int);
+    callback change-month(int, int);
+
+    // Schedule callbacks
+    callback prev-week();
+    callback next-week();
+    callback add-appointment(int, string, string, int, string);
+    callback update-appointment(int, int, string, string, int, string);
+    callback delete-appointment(int);
+    callback mark-attended(int, int, string, float, string);  // id, client_id, date, amount, visit-note
+    callback mark-no-show(int);
+
+    // Print callbacks
+    callback save-pdf(bool, int);    // ukrainian, client-program-id
+    callback print-report(bool, int); // ukrainian, client-program-id
+
+    HorizontalLayout {
+        // Sidebar
+        Rectangle {
+            width: 200px;
+            background: Theme.sidebar-bg;
+
+            VerticalLayout {
+                padding: Theme.pad-md;
+                spacing: 4px;
+                alignment: start;
+
+                // App title
+                Text {
+                    text: Tr.app-title;
+                    font-size: Theme.font-lg;
+                    color: Theme.primary;
+                    horizontal-alignment: center;
+                }
+
+                Rectangle { height: Theme.pad-lg; }
+
+                // Dashboard nav item
+                Rectangle {
+                    height: 40px;
+                    border-radius: 6px;
+                    background: current-tab == 0 ? Theme.surface : transparent;
+
+                    HorizontalLayout {
+                        padding-left: Theme.pad-md;
+
+                        Text {
+                            text: Tr.nav-dashboard;
+                            font-size: Theme.font-md;
+                            color: current-tab == 0 ? Theme.primary : Theme.text-dim;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    TouchArea {
+                        clicked => { current-tab = 0; }
+                    }
+                }
+
+                // Clients nav item
+                Rectangle {
+                    height: 40px;
+                    border-radius: 6px;
+                    background: current-tab == 1 ? Theme.surface : transparent;
+
+                    HorizontalLayout {
+                        padding-left: Theme.pad-md;
+
+                        Text {
+                            text: Tr.nav-clients;
+                            font-size: Theme.font-md;
+                            color: current-tab == 1 ? Theme.primary : Theme.text-dim;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    TouchArea {
+                        clicked => { current-tab = 1; }
+                    }
+                }
+
+                // Programs nav item
+                Rectangle {
+                    height: 40px;
+                    border-radius: 6px;
+                    background: current-tab == 2 ? Theme.surface : transparent;
+
+                    HorizontalLayout {
+                        padding-left: Theme.pad-md;
+
+                        Text {
+                            text: Tr.nav-programs;
+                            font-size: Theme.font-md;
+                            color: current-tab == 2 ? Theme.primary : Theme.text-dim;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    TouchArea {
+                        clicked => { current-tab = 2; }
+                    }
+                }
+
+                // Trainers nav item
+                Rectangle {
+                    height: 40px;
+                    border-radius: 6px;
+                    background: current-tab == 3 ? Theme.surface : transparent;
+
+                    HorizontalLayout {
+                        padding-left: Theme.pad-md;
+
+                        Text {
+                            text: Tr.nav-trainers;
+                            font-size: Theme.font-md;
+                            color: current-tab == 3 ? Theme.primary : Theme.text-dim;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    TouchArea {
+                        clicked => { current-tab = 3; }
+                    }
+                }
+
+                // Finances nav item
+                Rectangle {
+                    height: 40px;
+                    border-radius: 6px;
+                    background: current-tab == 4 ? Theme.surface : transparent;
+
+                    HorizontalLayout {
+                        padding-left: Theme.pad-md;
+
+                        Text {
+                            text: Tr.nav-finances;
+                            font-size: Theme.font-md;
+                            color: current-tab == 4 ? Theme.primary : Theme.text-dim;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    TouchArea {
+                        clicked => { current-tab = 4; }
+                    }
+                }
+
+                // Schedule nav item
+                Rectangle {
+                    height: 40px;
+                    border-radius: 6px;
+                    background: current-tab == 5 ? Theme.surface : transparent;
+
+                    HorizontalLayout {
+                        padding-left: Theme.pad-md;
+
+                        Text {
+                            text: Tr.nav-schedule;
+                            font-size: Theme.font-md;
+                            color: current-tab == 5 ? Theme.primary : Theme.text-dim;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    TouchArea {
+                        clicked => { current-tab = 5; }
+                    }
+                }
+
+                // Spacer to push language toggle to bottom
+                Rectangle { vertical-stretch: 1; }
+
+                // Language toggle pill
+                Rectangle {
+                    height: 36px;
+                    border-radius: 18px;
+                    background: Theme.surface;
+
+                    HorizontalLayout {
+                        padding: 3px;
+
+                        // EN button
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            border-radius: 15px;
+                            background: !Tr.ukrainian ? Theme.primary : transparent;
+
+                            Text {
+                                text: "EN";
+                                font-size: Theme.font-md;
+                                color: !Tr.ukrainian ? Theme.bg : Theme.text-dim;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            TouchArea {
+                                clicked => { Tr.ukrainian = false; }
+                            }
+                        }
+
+                        // UA button
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            border-radius: 15px;
+                            background: Tr.ukrainian ? Theme.primary : transparent;
+
+                            Text {
+                                text: "UA";
+                                font-size: Theme.font-md;
+                                color: Tr.ukrainian ? Theme.bg : Theme.text-dim;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            TouchArea {
+                                clicked => { Tr.ukrainian = true; }
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        HorizontalBox {
-            VerticalBox {
-                width: 55%;
+        // Content area
+        Rectangle {
+            horizontal-stretch: 1;
 
-                Text {
-                    text: "Contacts (" + contacts.length + ")";
-                    font-size: 16px;
-                    font-weight: 600;
-                }
+            if current-tab == 0: DashboardPage {
+                active-programs: root.active-programs;
+                checkins: root.checkins;
+                exercise-completions: root.exercise-completions;
+                exercise-week-done: root.exercise-week-done;
 
-                Rectangle {
-                    background: #f8f8f8;
-                    border-radius: 4px;
-
-                    ListView {
-                        for contact[index] in contacts: Rectangle {
-                            height: 64px;
-                            background: index == selected-index ? #d0e8ff : (touch.has-hover ? #eee : transparent);
-                            border-radius: 4px;
-
-                            touch := TouchArea {
-                                clicked => {
-                                    selected-index = index;
-                                    select-contact(index);
-                                }
-                            }
-
-                            HorizontalBox {
-                                padding: 10px;
-
-                                VerticalBox {
-                                    alignment: start;
-                                    spacing: 2px;
-
-                                    Text {
-                                        text: contact.name;
-                                        font-weight: 600;
-                                        font-size: 14px;
-                                        color: #222;
-                                    }
-                                    Text {
-                                        text: contact.email;
-                                        font-size: 12px;
-                                        color: #555;
-                                    }
-                                    Text {
-                                        text: contact.phone;
-                                        font-size: 11px;
-                                        color: #888;
-                                    }
-                                }
-
-                                Rectangle { }
-
-                                Rectangle {
-                                    width: 70px;
-                                    height: 24px;
-                                    background: contact.status == "Active" ? #4caf50 :
-                                               contact.status == "Lead" ? #ff9800 : #9e9e9e;
-                                    border-radius: 12px;
-
-                                    Text {
-                                        text: contact.status;
-                                        color: white;
-                                        font-size: 11px;
-                                        horizontal-alignment: center;
-                                        vertical-alignment: center;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                expand-card(id) => { root.expand-card(id); }
+                toggle-checkin(id) => { root.toggle-checkin(id); }
+                toggle-exercise-week(cp-id, ex-id, ci-id) => { root.toggle-exercise-week(cp-id, ex-id, ci-id); }
+                save-pdf(cp-id) => { root.save-pdf(Tr.ukrainian, cp-id); }
+                print-report(cp-id) => { root.print-report(Tr.ukrainian, cp-id); }
             }
 
-            VerticalBox {
-                width: 45%;
-                padding-left: 15px;
+            if current-tab == 1: ClientsPage {
+                clients: root.clients;
+                trainers: root.trainers;
+                programs: root.programs;
+                selected-client-programs: root.selected-client-programs;
 
-                Text {
-                    text: selected-index >= 0 ? "Edit Contact" : "New Contact";
-                    font-size: 16px;
-                    font-weight: 600;
-                }
+                add-client(name, phone, email, notes, trainer-idx) => { root.add-client(name, phone, email, notes, trainer-idx); }
+                update-client(id, name, phone, email, notes, trainer-idx) => { root.update-client(id, name, phone, email, notes, trainer-idx); }
+                delete-client(id) => { root.delete-client(id); }
+                select-client(id) => { root.select-client(id); }
+                assign-program(client-id, program-idx) => { root.assign-program(client-id, program-idx); }
+                pause-program(id) => { root.pause-program(id); }
+                resume-program(id) => { root.resume-program(id); }
+                complete-program(id) => { root.complete-program(id); }
+                cancel-program(id) => { root.cancel-program(id); }
+            }
 
-                GroupBox {
-                    title: "Details";
+            if current-tab == 2: ProgramsPage {
+                programs: root.programs;
+                exercises: root.exercises;
 
-                    VerticalBox {
-                        spacing: 12px;
+                add-program(name, desc, weeks) => { root.add-program(name, desc, weeks); }
+                update-program(id, name, desc, weeks) => { root.update-program(id, name, desc, weeks); }
+                delete-program(id) => { root.delete-program(id); }
+                select-program(id) => { root.select-program(id); }
+                add-exercise(pid, name, sets, reps, weight, notes) => { root.add-exercise(pid, name, sets, reps, weight, notes); }
+                update-exercise(id, name, sets, reps, weight, notes) => { root.update-exercise(id, name, sets, reps, weight, notes); }
+                delete-exercise(id) => { root.delete-exercise(id); }
+            }
 
-                        VerticalBox {
-                            spacing: 4px;
-                            Text { text: "Name"; font-size: 12px; color: #666; }
-                            LineEdit {
-                                placeholder-text: "Enter name";
-                                text <=> form-name;
-                            }
-                        }
+            if current-tab == 3: TrainersPage {
+                trainers: root.trainers;
 
-                        VerticalBox {
-                            spacing: 4px;
-                            Text { text: "Email"; font-size: 12px; color: #666; }
-                            LineEdit {
-                                placeholder-text: "Enter email";
-                                text <=> form-email;
-                            }
-                        }
+                add-trainer(name, phone, spec) => { root.add-trainer(name, phone, spec); }
+                update-trainer(id, name, phone, spec) => { root.update-trainer(id, name, phone, spec); }
+                delete-trainer(id) => { root.delete-trainer(id); }
+            }
 
-                        VerticalBox {
-                            spacing: 4px;
-                            Text { text: "Phone"; font-size: 12px; color: #666; }
-                            LineEdit {
-                                placeholder-text: "Enter phone";
-                                text <=> form-phone;
-                            }
-                        }
+            if current-tab == 4: FinancesPage {
+                visits: root.visits;
+                clients: root.clients;
+                monthly-total: root.monthly-total;
+                current-month: root.current-month;
+                current-year: root.current-year;
 
-                        VerticalBox {
-                            spacing: 4px;
-                            Text { text: "Status"; font-size: 12px; color: #666; }
-                            ComboBox {
-                                model: ["Active", "Lead", "Inactive"];
-                                current-index <=> form-status-index;
-                            }
-                        }
-                    }
-                }
+                add-visit(client-id, date, amount, notes) => { root.add-visit(client-id, date, amount, notes); }
+                update-visit(id, client-id, date, amount, notes) => { root.update-visit(id, client-id, date, amount, notes); }
+                delete-visit(id) => { root.delete-visit(id); }
+                change-month(year, month) => { root.change-month(year, month); }
+            }
 
-                HorizontalBox {
-                    spacing: 8px;
-                    padding-top: 12px;
+            if current-tab == 5: SchedulePage {
+                week-days: root.week-days;
+                appointments: root.appointments;
+                hour-labels: root.hour-labels;
+                week-label <=> root.week-label;
+                clients: root.clients;
 
-                    Button {
-                        text: selected-index >= 0 ? "Update" : "Add";
-                        primary: true;
-                        clicked => {
-                            if (selected-index >= 0) {
-                                update-contact(selected-index);
-                            } else {
-                                add-contact();
-                            }
-                        }
-                    }
-
-                    Button {
-                        text: "Clear";
-                        clicked => {
-                            form-name = "";
-                            form-email = "";
-                            form-phone = "";
-                            form-status-index = 0;
-                            selected-index = -1;
-                        }
-                    }
-
-                    Button {
-                        text: "Delete";
-                        enabled: selected-index >= 0;
-                        clicked => {
-                            delete-contact(selected-index);
-                        }
-                    }
-                }
+                prev-week() => { root.prev-week(); }
+                next-week() => { root.next-week(); }
+                add-appointment(client-id, date, time, dur, notes) => { root.add-appointment(client-id, date, time, dur, notes); }
+                update-appointment(id, client-id, date, time, dur, notes) => { root.update-appointment(id, client-id, date, time, dur, notes); }
+                delete-appointment(id) => { root.delete-appointment(id); }
+                mark-attended(id, client-id, date, amount, note) => { root.mark-attended(id, client-id, date, amount, note); }
+                mark-no-show(id) => { root.mark-no-show(id); }
             }
         }
     }

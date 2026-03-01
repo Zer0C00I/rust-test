@@ -1,0 +1,516 @@
+import { ScrollView, LineEdit, SpinBox } from "std-widgets.slint";
+import { Theme } from "styles.slint";
+import { Tr } from "translations.slint";
+
+export struct ProgramData {
+    id: int,
+    name: string,
+    description: string,
+    duration-weeks: int,
+}
+
+export struct ExerciseData {
+    id: int,
+    name: string,
+    sets: int,
+    reps: int,
+    weight: int,
+    notes: string,
+}
+
+export component ProgramsPage inherits Rectangle {
+    background: Theme.bg;
+
+    in property <[ProgramData]> programs;
+    in property <[ExerciseData]> exercises;
+    in-out property <int> editing-id: -1;
+    in-out property <string> form-name;
+    in-out property <string> form-desc;
+    in-out property <int> form-weeks: 4;
+    in-out property <bool> show-form: false;
+
+    // Exercise form state
+    in-out property <int> selected-program-id: -1;
+    in-out property <int> exercise-editing-id: -1;
+    in-out property <string> ex-form-name;
+    in-out property <int> ex-form-sets: 3;
+    in-out property <int> ex-form-reps: 10;
+    in-out property <int> ex-form-weight: 0;
+    in-out property <string> ex-form-notes;
+    in-out property <bool> show-ex-form: false;
+
+    callback add-program(string, string, int);
+    callback update-program(int, string, string, int);
+    callback delete-program(int);
+    callback select-program(int);
+    callback add-exercise(int, string, int, int, int, string);
+    callback update-exercise(int, string, int, int, int, string);
+    callback delete-exercise(int);
+
+    VerticalLayout {
+        padding: Theme.pad-lg;
+        spacing: Theme.pad-md;
+
+        HorizontalLayout {
+            Text {
+                text: Tr.programs-title;
+                font-size: Theme.font-xl;
+                color: Theme.text;
+                vertical-alignment: center;
+            }
+            Rectangle { }
+            Rectangle {
+                width: 160px;
+                height: 36px;
+                border-radius: 6px;
+                background: show-form ? Theme.danger : Theme.primary;
+
+                Text {
+                    text: show-form ? Tr.cancel : Tr.add-program;
+                    font-size: Theme.font-md;
+                    color: Theme.bg;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    clicked => {
+                        if (show-form) {
+                            show-form = false;
+                            editing-id = -1;
+                        } else {
+                            form-name = "";
+                            form-desc = "";
+                            form-weeks = 4;
+                            editing-id = -1;
+                            show-form = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if show-form: Rectangle {
+            background: Theme.surface;
+            border-radius: 8px;
+            height: 240px;
+
+            VerticalLayout {
+                padding: Theme.pad-md;
+                spacing: Theme.pad-sm;
+
+                Text {
+                    text: editing-id >= 0 ? Tr.edit-program : Tr.new-program;
+                    font-size: Theme.font-lg;
+                    color: Theme.primary;
+                }
+
+                HorizontalLayout {
+                    spacing: Theme.pad-sm;
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: Tr.name-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit {
+                            text <=> form-name;
+                            placeholder-text: Tr.program-name-placeholder;
+                            height: 32px;
+                        }
+                    }
+                    VerticalLayout {
+                        width: 140px;
+                        spacing: 4px;
+                        Text { text: Tr.duration-weeks-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        SpinBox {
+                            value <=> form-weeks;
+                            minimum: 1;
+                            maximum: 52;
+                            height: 32px;
+                        }
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Text { text: Tr.description-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                    LineEdit {
+                        text <=> form-desc;
+                        placeholder-text: Tr.program-desc-placeholder;
+                        height: 32px;
+                    }
+                }
+
+                Rectangle {
+                    width: 100px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: Theme.primary;
+
+                    Text {
+                        text: editing-id >= 0 ? Tr.update : Tr.save;
+                        font-size: Theme.font-md;
+                        color: Theme.bg;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    TouchArea {
+                        clicked => {
+                            if (editing-id >= 0) {
+                                root.update-program(editing-id, form-name, form-desc, form-weeks);
+                            } else {
+                                root.add-program(form-name, form-desc, form-weeks);
+                            }
+                            show-form = false;
+                            editing-id = -1;
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: Theme.pad-md;
+
+            // Left: Program list
+            VerticalLayout {
+                horizontal-stretch: 2;
+                spacing: 4px;
+
+                // Header
+                Rectangle {
+                    background: Theme.surface;
+                    border-radius: 6px;
+                    height: 40px;
+
+                    HorizontalLayout {
+                        padding-left: Theme.pad-md;
+                        padding-right: Theme.pad-md;
+
+                        Text { text: Tr.name-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                        Text { text: Tr.description-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 2; vertical-alignment: center; }
+                        Text { text: Tr.weeks-label; font-size: Theme.font-sm; color: Theme.text-dim; width: 60px; vertical-alignment: center; horizontal-alignment: center; }
+                        Text { text: Tr.actions-label; font-size: Theme.font-sm; color: Theme.text-dim; width: 140px; vertical-alignment: center; horizontal-alignment: center; }
+                    }
+                }
+
+                ScrollView {
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 4px;
+
+                        for program[idx] in programs: Rectangle {
+                            background: selected-program-id == program.id ? Theme.surface-hover : Theme.surface;
+                            border-radius: 6px;
+                            height: 44px;
+
+                            TouchArea {
+                                clicked => {
+                                    selected-program-id = program.id;
+                                    show-ex-form = false;
+                                    exercise-editing-id = -1;
+                                    root.select-program(program.id);
+                                }
+                            }
+
+                            HorizontalLayout {
+                                padding-left: Theme.pad-md;
+                                padding-right: Theme.pad-md;
+
+                                Text { text: program.name; font-size: Theme.font-md; color: Theme.text; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                                Text { text: program.description; font-size: Theme.font-md; color: Theme.text-dim; horizontal-stretch: 2; vertical-alignment: center; overflow: elide; }
+                                Text { text: program.duration-weeks; font-size: Theme.font-md; color: Theme.text; width: 60px; vertical-alignment: center; horizontal-alignment: center; }
+
+                                VerticalLayout {
+                                    width: 140px;
+                                    alignment: center;
+
+                                    HorizontalLayout {
+                                        spacing: 8px;
+                                        alignment: center;
+
+                                        Rectangle {
+                                            width: 56px;
+                                            height: 28px;
+                                            border-radius: 4px;
+                                            background: Theme.primary;
+
+                                            Text { text: Tr.edit; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                            TouchArea {
+                                                clicked => {
+                                                    form-name = program.name;
+                                                    form-desc = program.description;
+                                                    form-weeks = program.duration-weeks;
+                                                    editing-id = program.id;
+                                                    show-form = true;
+                                                }
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            width: 56px;
+                                            height: 28px;
+                                            border-radius: 4px;
+                                            background: Theme.danger;
+
+                                            Text { text: Tr.delete; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                            TouchArea {
+                                                clicked => {
+                                                    if (selected-program-id == program.id) {
+                                                        selected-program-id = -1;
+                                                    }
+                                                    root.delete-program(program.id);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Right: Exercise detail panel
+            if selected-program-id >= 0: VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: Theme.pad-sm;
+
+                HorizontalLayout {
+                    Text {
+                        text: Tr.exercises-header;
+                        font-size: Theme.font-lg;
+                        color: Theme.primary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle { }
+                    Rectangle {
+                        width: 130px;
+                        height: 30px;
+                        border-radius: 6px;
+                        background: show-ex-form ? Theme.danger : Theme.primary;
+
+                        Text {
+                            text: show-ex-form ? Tr.cancel : Tr.add-exercise;
+                            font-size: Theme.font-sm;
+                            color: Theme.bg;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+
+                        TouchArea {
+                            clicked => {
+                                if (show-ex-form) {
+                                    show-ex-form = false;
+                                    exercise-editing-id = -1;
+                                } else {
+                                    ex-form-name = "";
+                                    ex-form-sets = 3;
+                                    ex-form-reps = 10;
+                                    ex-form-weight = 0;
+                                    ex-form-notes = "";
+                                    exercise-editing-id = -1;
+                                    show-ex-form = true;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if show-ex-form: Rectangle {
+                    background: Theme.surface;
+                    border-radius: 8px;
+                    height: 220px;
+
+                    VerticalLayout {
+                        padding: Theme.pad-sm;
+                        spacing: 6px;
+
+                        Text {
+                            text: exercise-editing-id >= 0 ? Tr.edit-exercise : Tr.new-exercise;
+                            font-size: Theme.font-md;
+                            color: Theme.primary;
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: Tr.name-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                            LineEdit {
+                                text <=> ex-form-name;
+                                placeholder-text: Tr.exercise-name-placeholder;
+                                height: 28px;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: Theme.pad-sm;
+
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                spacing: 4px;
+                                Text { text: Tr.sets-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                                SpinBox {
+                                    value <=> ex-form-sets;
+                                    minimum: 1;
+                                    maximum: 20;
+                                    height: 28px;
+                                }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                spacing: 4px;
+                                Text { text: Tr.reps-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                                SpinBox {
+                                    value <=> ex-form-reps;
+                                    minimum: 1;
+                                    maximum: 100;
+                                    height: 28px;
+                                }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                spacing: 4px;
+                                Text { text: Tr.weight-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                                SpinBox {
+                                    value <=> ex-form-weight;
+                                    minimum: 0;
+                                    maximum: 999;
+                                    height: 28px;
+                                }
+                            }
+                        }
+
+                        VerticalLayout {
+                            spacing: 4px;
+                            Text { text: Tr.notes-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                            LineEdit {
+                                text <=> ex-form-notes;
+                                placeholder-text: Tr.optional-notes-placeholder;
+                                height: 28px;
+                            }
+                        }
+
+                        Rectangle {
+                            width: 80px;
+                            height: 28px;
+                            border-radius: 4px;
+                            background: Theme.primary;
+
+                            Text {
+                                text: exercise-editing-id >= 0 ? Tr.update : Tr.save;
+                                font-size: Theme.font-sm;
+                                color: Theme.bg;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            TouchArea {
+                                clicked => {
+                                    if (exercise-editing-id >= 0) {
+                                        root.update-exercise(exercise-editing-id, ex-form-name, ex-form-sets, ex-form-reps, ex-form-weight, ex-form-notes);
+                                    } else {
+                                        root.add-exercise(selected-program-id, ex-form-name, ex-form-sets, ex-form-reps, ex-form-weight, ex-form-notes);
+                                    }
+                                    show-ex-form = false;
+                                    exercise-editing-id = -1;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                ScrollView {
+                    VerticalLayout {
+                        alignment: start;
+                        spacing: 4px;
+
+                        for exercise[idx] in exercises: Rectangle {
+                            background: Theme.surface;
+                            border-radius: 6px;
+                            height: 48px;
+
+                            VerticalLayout {
+                                padding-top: 4px;
+                                padding-bottom: 4px;
+                                padding-left: Theme.pad-sm;
+                                padding-right: Theme.pad-sm;
+
+                                HorizontalLayout {
+                                    spacing: 8px;
+
+                                    Text {
+                                        text: exercise.name;
+                                        font-size: Theme.font-md;
+                                        color: Theme.text;
+                                        horizontal-stretch: 1;
+                                        vertical-alignment: center;
+                                    }
+
+                                    Text {
+                                        text: exercise.weight > 0
+                                            ? exercise.sets + "x" + exercise.reps + " @" + exercise.weight + "kg"
+                                            : exercise.sets + "x" + exercise.reps;
+                                        font-size: Theme.font-md;
+                                        color: Theme.primary;
+                                        vertical-alignment: center;
+                                        width: 80px;
+                                        horizontal-alignment: center;
+                                    }
+
+                                    Text {
+                                        text: exercise.notes;
+                                        font-size: Theme.font-sm;
+                                        color: Theme.text-dim;
+                                        horizontal-stretch: 1;
+                                        vertical-alignment: center;
+                                        overflow: elide;
+                                    }
+                                }
+
+                                HorizontalLayout {
+                                    spacing: 8px;
+                                    alignment: end;
+
+                                    Rectangle {
+                                        width: 56px;
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: Theme.primary;
+
+                                        Text { text: Tr.edit; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                        TouchArea {
+                                            clicked => {
+                                                ex-form-name = exercise.name;
+                                                ex-form-sets = exercise.sets;
+                                                ex-form-reps = exercise.reps;
+                                                ex-form-weight = exercise.weight;
+                                                ex-form-notes = exercise.notes;
+                                                exercise-editing-id = exercise.id;
+                                                show-ex-form = true;
+                                            }
+                                        }
+                                    }
+
+                                    Rectangle {
+                                        width: 56px;
+                                        height: 24px;
+                                        border-radius: 4px;
+                                        background: Theme.danger;
+
+                                        Text { text: Tr.delete; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                        TouchArea {
+                                            clicked => {
+                                                root.delete-exercise(exercise.id);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

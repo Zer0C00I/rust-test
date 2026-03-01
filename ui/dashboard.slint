@@ -1,0 +1,359 @@
+import { ScrollView } from "std-widgets.slint";
+import { Theme } from "styles.slint";
+import { Tr } from "translations.slint";
+
+export struct DashboardCardData {
+    id: int,
+    client-name: string,
+    program-name: string,
+    trainer-name: string,
+    start-date: string,
+    status: string,
+}
+
+export struct CheckInData {
+    id: int,
+    date: string,
+    completed: bool,
+}
+
+export struct ExerciseCompletionData {
+    id: int,
+    exercise-id: int,
+    name: string,
+    sets: int,
+    reps: int,
+    weight: int,
+    notes: string,
+    completed: bool,
+}
+
+export component DashboardPage inherits Rectangle {
+    background: Theme.bg;
+
+    in property <[DashboardCardData]> active-programs;
+    in property <[CheckInData]> checkins;
+    in property <[ExerciseCompletionData]> exercise-completions;
+    // Flat N_exercises × N_checkins bool array, index = ex-idx * checkins.length + ci-idx
+    in property <[bool]> exercise-week-done;
+    in-out property <int> expanded-id: -1;
+
+    callback expand-card(int);
+    callback toggle-checkin(int);
+    callback toggle-exercise-week(int, int, int); // cp-id, exercise-id, checkin-id
+    callback save-pdf(int);      // client-program-id
+    callback print-report(int);  // client-program-id
+
+    VerticalLayout {
+        padding: Theme.pad-lg;
+        spacing: Theme.pad-md;
+
+        HorizontalLayout {
+            spacing: Theme.pad-sm;
+
+            Text {
+                text: Tr.dashboard-title;
+                font-size: Theme.font-xl;
+                color: Theme.text;
+                vertical-alignment: center;
+            }
+
+            Rectangle { horizontal-stretch: 1; }
+
+            // Save PDF button
+            Rectangle {
+                width: 120px;
+                height: 36px;
+                border-radius: 6px;
+                background: expanded-id == -1 ? Theme.surface : Theme.primary;
+                opacity: expanded-id == -1 ? 0.4 : 1.0;
+
+                Text {
+                    text: Tr.save-pdf-btn;
+                    font-size: Theme.font-md;
+                    color: expanded-id == -1 ? Theme.text-dim : Theme.bg;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    mouse-cursor: expanded-id == -1 ? MouseCursor.not-allowed : MouseCursor.pointer;
+                    clicked => {
+                        if (expanded-id != -1) {
+                            root.save-pdf(expanded-id);
+                        }
+                    }
+                }
+            }
+
+            // Print button
+            Rectangle {
+                width: 100px;
+                height: 36px;
+                border-radius: 6px;
+                background: expanded-id == -1 ? Theme.surface : Theme.success;
+                opacity: expanded-id == -1 ? 0.4 : 1.0;
+
+                Text {
+                    text: Tr.print-btn;
+                    font-size: Theme.font-md;
+                    color: expanded-id == -1 ? Theme.text-dim : Theme.bg;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    mouse-cursor: expanded-id == -1 ? MouseCursor.not-allowed : MouseCursor.pointer;
+                    clicked => {
+                        if (expanded-id != -1) {
+                            root.print-report(expanded-id);
+                        }
+                    }
+                }
+            }
+        }
+
+        Text {
+            text: active-programs.length == 0 ? Tr.dashboard-empty : "";
+            font-size: Theme.font-md;
+            color: Theme.text-dim;
+            visible: active-programs.length == 0;
+        }
+
+        ScrollView {
+            VerticalLayout {
+                alignment: start;
+                spacing: Theme.pad-sm;
+
+                for card[idx] in active-programs: VerticalLayout {
+                    spacing: 0;
+
+                    Rectangle {
+                        background: expanded-id == card.id ? Theme.surface-hover : Theme.surface;
+                        border-radius: expanded-id == card.id ? 8px : 8px;
+                        height: 80px;
+
+                        TouchArea {
+                            clicked => {
+                                if (expanded-id == card.id) {
+                                    expanded-id = -1;
+                                } else {
+                                    expanded-id = card.id;
+                                    root.expand-card(card.id);
+                                }
+                            }
+                        }
+
+                        HorizontalLayout {
+                            padding: Theme.pad-md;
+                            spacing: Theme.pad-md;
+
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                spacing: 4px;
+                                alignment: center;
+
+                                HorizontalLayout {
+                                    spacing: 8px;
+
+                                    Text {
+                                        text: card.program-name;
+                                        font-size: Theme.font-lg;
+                                        color: card.status == "paused" ? Theme.text-dim : Theme.primary;
+                                        overflow: elide;
+                                    }
+
+                                    if card.status == "paused": Rectangle {
+                                        width: 60px;
+                                        height: 20px;
+                                        border-radius: 4px;
+                                        background: Theme.warning;
+
+                                        Text {
+                                            text: Tr.status-paused;
+                                            font-size: Theme.font-sm;
+                                            color: Theme.bg;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                                Text {
+                                    text: card.client-name;
+                                    font-size: Theme.font-md;
+                                    color: card.status == "paused" ? Theme.text-dim : Theme.text;
+                                    overflow: elide;
+                                }
+                            }
+
+                            VerticalLayout {
+                                alignment: center;
+                                spacing: 4px;
+
+                                Text {
+                                    text: Tr.trainer-prefix + card.trainer-name;
+                                    font-size: Theme.font-sm;
+                                    color: Theme.text-dim;
+                                    horizontal-alignment: right;
+                                    overflow: elide;
+                                }
+                                Text {
+                                    text: Tr.started-prefix + card.start-date;
+                                    font-size: Theme.font-sm;
+                                    color: Theme.text-dim;
+                                    horizontal-alignment: right;
+                                    overflow: elide;
+                                }
+                            }
+
+                            VerticalLayout {
+                                width: 24px;
+                                alignment: center;
+
+                                Text {
+                                    text: expanded-id == card.id ? "▲" : "▼";
+                                    font-size: Theme.font-md;
+                                    color: Theme.text-dim;
+                                    horizontal-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    if expanded-id == card.id: Rectangle {
+                        background: Theme.surface;
+                        border-radius: 0;
+                        min-height: 40px;
+
+                        VerticalLayout {
+                            padding-left: Theme.pad-lg;
+                            padding-right: Theme.pad-md;
+                            padding-top: Theme.pad-sm;
+                            padding-bottom: Theme.pad-sm;
+                            spacing: 4px;
+
+                            Text {
+                                text: Tr.checkins-header;
+                                font-size: Theme.font-sm;
+                                color: Theme.text-dim;
+                            }
+
+                            if checkins.length == 0: Text {
+                                text: Tr.no-checkins;
+                                font-size: Theme.font-sm;
+                                color: Theme.text-dim;
+                            }
+
+                            for ci[ci-idx] in checkins: HorizontalLayout {
+                                height: 32px;
+                                spacing: Theme.pad-sm;
+
+                                // Checkbox
+                                Rectangle {
+                                    width: 22px;
+                                    height: 22px;
+                                    border-radius: 4px;
+                                    border-width: 2px;
+                                    border-color: ci.completed ? Theme.success : Theme.border;
+                                    background: ci.completed ? Theme.success : transparent;
+
+                                    Text {
+                                        text: ci.completed ? "✓" : "";
+                                        font-size: Theme.font-md;
+                                        color: Theme.bg;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+
+                                    TouchArea {
+                                        clicked => {
+                                            root.toggle-checkin(ci.id);
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    text: Tr.week-prefix + (ci-idx + 1) + " - " + ci.date;
+                                    font-size: Theme.font-md;
+                                    color: ci.completed ? Theme.success : Theme.text;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+                            }
+
+                            Rectangle { height: Theme.pad-sm; }
+
+                            Text {
+                                text: Tr.exercises-header;
+                                font-size: Theme.font-sm;
+                                color: Theme.text-dim;
+                            }
+
+                            if exercise-completions.length == 0: Text {
+                                text: Tr.no-exercises;
+                                font-size: Theme.font-sm;
+                                color: Theme.text-dim;
+                            }
+
+                            for ex[ex-idx] in exercise-completions: HorizontalLayout {
+                                height: 42px;
+                                spacing: 4px;
+
+                                // Exercise name + sets×reps [@weight]
+                                Text {
+                                    text: ex.weight > 0
+                                        ? ex.name + "  " + ex.sets + "×" + ex.reps + " @" + ex.weight + "kg"
+                                        : ex.name + "  " + ex.sets + "×" + ex.reps;
+                                    font-size: Theme.font-md;
+                                    color: Theme.text;
+                                    vertical-alignment: center;
+                                    horizontal-stretch: 1;
+                                    overflow: elide;
+                                }
+
+                                // One column per check-in: week number on top, checkbox below
+                                for ci[ci-idx] in checkins: VerticalLayout {
+                                    width: 28px;
+                                    spacing: 2px;
+                                    alignment: center;
+
+                                    Text {
+                                        text: ci-idx + 1;
+                                        font-size: 8px;
+                                        color: Theme.text-dim;
+                                        horizontal-alignment: center;
+                                        height: 12px;
+                                    }
+
+                                    Rectangle {
+                                        width: 26px;
+                                        height: 26px;
+                                        border-radius: 4px;
+                                        border-width: 2px;
+                                        property <bool> week-done: exercise-week-done[ex-idx * checkins.length + ci-idx];
+                                        border-color: week-done ? Theme.success : Theme.border;
+                                        background: week-done ? Theme.success : transparent;
+
+                                        Text {
+                                            text: week-done ? "✓" : "";
+                                            font-size: Theme.font-sm;
+                                            color: Theme.bg;
+                                            horizontal-alignment: center;
+                                            vertical-alignment: center;
+                                        }
+
+                                        TouchArea {
+                                            clicked => {
+                                                root.toggle-exercise-week(card.id, ex.exercise-id, ci.id);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

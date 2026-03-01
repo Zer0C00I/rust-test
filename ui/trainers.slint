@@ -1,0 +1,226 @@
+import { ScrollView, LineEdit } from "std-widgets.slint";
+import { Theme } from "styles.slint";
+import { Tr } from "translations.slint";
+
+export struct TrainerData {
+    id: int,
+    name: string,
+    phone: string,
+    specialization: string,
+}
+
+export component TrainersPage inherits Rectangle {
+    background: Theme.bg;
+
+    in property <[TrainerData]> trainers;
+    in-out property <int> editing-id: -1;
+    in-out property <string> form-name;
+    in-out property <string> form-phone;
+    in-out property <string> form-spec;
+    in-out property <bool> show-form: false;
+
+    callback add-trainer(string, string, string);
+    callback update-trainer(int, string, string, string);
+    callback delete-trainer(int);
+
+    VerticalLayout {
+        padding: Theme.pad-lg;
+        spacing: Theme.pad-md;
+
+        HorizontalLayout {
+            Text {
+                text: Tr.trainers-title;
+                font-size: Theme.font-xl;
+                color: Theme.text;
+                vertical-alignment: center;
+            }
+            Rectangle { }
+            Rectangle {
+                width: 160px;
+                height: 36px;
+                border-radius: 6px;
+                background: show-form ? Theme.danger : Theme.primary;
+
+                Text {
+                    text: show-form ? Tr.cancel : Tr.add-trainer;
+                    font-size: Theme.font-md;
+                    color: Theme.bg;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    clicked => {
+                        if (show-form) {
+                            show-form = false;
+                            editing-id = -1;
+                        } else {
+                            form-name = "";
+                            form-phone = "";
+                            form-spec = "";
+                            editing-id = -1;
+                            show-form = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if show-form: Rectangle {
+            background: Theme.surface;
+            border-radius: 8px;
+            height: 200px;
+
+            VerticalLayout {
+                padding: Theme.pad-md;
+                spacing: Theme.pad-sm;
+
+                Text {
+                    text: editing-id >= 0 ? Tr.edit-trainer : Tr.new-trainer;
+                    font-size: Theme.font-lg;
+                    color: Theme.primary;
+                }
+
+                HorizontalLayout {
+                    spacing: Theme.pad-sm;
+
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: Tr.name-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit {
+                            text <=> form-name;
+                            placeholder-text: Tr.full-name-placeholder;
+                            height: 32px;
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: Tr.phone-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit {
+                            text <=> form-phone;
+                            placeholder-text: Tr.phone-number-placeholder;
+                            height: 32px;
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: Tr.specialization-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit {
+                            text <=> form-spec;
+                            placeholder-text: Tr.specialization-placeholder;
+                            height: 32px;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 100px;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: Theme.primary;
+
+                    Text {
+                        text: editing-id >= 0 ? Tr.update : Tr.save;
+                        font-size: Theme.font-md;
+                        color: Theme.bg;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    TouchArea {
+                        clicked => {
+                            if (editing-id >= 0) {
+                                root.update-trainer(editing-id, form-name, form-phone, form-spec);
+                            } else {
+                                root.add-trainer(form-name, form-phone, form-spec);
+                            }
+                            show-form = false;
+                            editing-id = -1;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Header row
+        Rectangle {
+            background: Theme.surface;
+            border-radius: 6px;
+            height: 40px;
+
+            HorizontalLayout {
+                padding-left: Theme.pad-md;
+                padding-right: Theme.pad-md;
+
+                Text { text: Tr.name-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                Text { text: Tr.phone-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                Text { text: Tr.specialization-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                Text { text: Tr.actions-label; font-size: Theme.font-sm; color: Theme.text-dim; width: 140px; vertical-alignment: center; horizontal-alignment: center; }
+            }
+        }
+
+        ScrollView {
+            VerticalLayout {
+                alignment: start;
+                spacing: 4px;
+
+                for trainer[idx] in trainers: Rectangle {
+                    background: Theme.surface;
+                    border-radius: 6px;
+                    height: 44px;
+
+                    HorizontalLayout {
+                        padding-left: Theme.pad-md;
+                        padding-right: Theme.pad-md;
+
+                        Text { text: trainer.name; font-size: Theme.font-md; color: Theme.text; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                        Text { text: trainer.phone; font-size: Theme.font-md; color: Theme.text; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                        Text { text: trainer.specialization; font-size: Theme.font-md; color: Theme.text; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+
+                        VerticalLayout {
+                            width: 140px;
+                            alignment: center;
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: center;
+
+                                Rectangle {
+                                    width: 56px;
+                                    height: 28px;
+                                    border-radius: 4px;
+                                    background: Theme.primary;
+
+                                    Text { text: Tr.edit; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                    TouchArea {
+                                        clicked => {
+                                            form-name = trainer.name;
+                                            form-phone = trainer.phone;
+                                            form-spec = trainer.specialization;
+                                            editing-id = trainer.id;
+                                            show-form = true;
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: 56px;
+                                    height: 28px;
+                                    border-radius: 4px;
+                                    background: Theme.danger;
+
+                                    Text { text: Tr.delete; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                    TouchArea {
+                                        clicked => {
+                                            root.delete-trainer(trainer.id);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

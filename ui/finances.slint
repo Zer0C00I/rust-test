@@ -1,0 +1,406 @@
+import { ScrollView, LineEdit } from "std-widgets.slint";
+import { Theme } from "styles.slint";
+import { Tr } from "translations.slint";
+import { ClientData } from "clients.slint";
+
+export struct VisitData {
+    id: int,
+    client-id: int,
+    client-idx: int,
+    client-name: string,
+    date: string,
+    amount: float,
+    notes: string,
+}
+
+export component FinancesPage inherits Rectangle {
+    background: Theme.bg;
+
+    in property <[VisitData]> visits;
+    in property <[ClientData]> clients;
+    in property <float> monthly-total: 0;
+    in property <int> current-month: 1;
+    in property <int> current-year: 2026;
+
+    in-out property <int> editing-id: -1;
+    in-out property <int> form-client-idx: 0;
+    in-out property <string> form-date;
+    in-out property <string> form-amount;
+    in-out property <string> form-notes;
+    in-out property <bool> show-form: false;
+
+    callback add-visit(int, string, float, string);
+    callback update-visit(int, int, string, float, string);
+    callback delete-visit(int);
+    callback change-month(int, int);
+
+    VerticalLayout {
+        padding: Theme.pad-lg;
+        spacing: Theme.pad-md;
+
+        // Header row: title + month selector + total
+        HorizontalLayout {
+            spacing: Theme.pad-md;
+
+            Text {
+                text: Tr.finances-title;
+                font-size: Theme.font-xl;
+                color: Theme.text;
+                vertical-alignment: center;
+            }
+
+            Rectangle { horizontal-stretch: 1; }
+
+            // Month navigator
+            HorizontalLayout {
+                spacing: 8px;
+                vertical-stretch: 0;
+
+                Rectangle {
+                    width: 28px;
+                    height: 32px;
+                    border-radius: 4px;
+                    background: Theme.primary;
+
+                    Text { text: "<"; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; font-size: Theme.font-md; }
+                    TouchArea {
+                        clicked => {
+                            if (current-month <= 1) {
+                                root.change-month(current-year - 1, 12);
+                            } else {
+                                root.change-month(current-year, current-month - 1);
+                            }
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 100px;
+                    height: 32px;
+                    border-radius: 4px;
+                    background: Theme.surface;
+
+                    Text {
+                        text: current-year + "-" + (current-month < 10 ? "0" : "") + current-month;
+                        font-size: Theme.font-md;
+                        color: Theme.text;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+
+                Rectangle {
+                    width: 28px;
+                    height: 32px;
+                    border-radius: 4px;
+                    background: Theme.primary;
+
+                    Text { text: ">"; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; font-size: Theme.font-md; }
+                    TouchArea {
+                        clicked => {
+                            if (current-month >= 12) {
+                                root.change-month(current-year + 1, 1);
+                            } else {
+                                root.change-month(current-year, current-month + 1);
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle { width: Theme.pad-md; }
+
+            // Total display
+            Rectangle {
+                width: 200px;
+                height: 32px;
+                border-radius: 6px;
+                background: Theme.success;
+
+                Text {
+                    text: Tr.total-label + ": " + round(monthly-total * 100) / 100 + " " + Tr.currency;
+                    font-size: Theme.font-md;
+                    color: Theme.bg;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+
+            Rectangle { width: Theme.pad-sm; }
+
+            // Add/Cancel button
+            Rectangle {
+                width: 160px;
+                height: 36px;
+                border-radius: 6px;
+                background: show-form ? Theme.danger : Theme.primary;
+
+                Text {
+                    text: show-form ? Tr.cancel : Tr.add-visit;
+                    font-size: Theme.font-md;
+                    color: Theme.bg;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                TouchArea {
+                    clicked => {
+                        if (show-form) {
+                            show-form = false;
+                            editing-id = -1;
+                        } else {
+                            form-client-idx = 0;
+                            form-date = current-year + "-" + (current-month < 10 ? "0" : "") + current-month + "-01";
+                            form-amount = "";
+                            form-notes = "";
+                            editing-id = -1;
+                            show-form = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add/Edit form
+        if show-form: Rectangle {
+            background: Theme.surface;
+            border-radius: 8px;
+            height: 130px;
+
+            VerticalLayout {
+                padding: Theme.pad-md;
+                spacing: Theme.pad-sm;
+
+                Text {
+                    text: editing-id >= 0 ? Tr.edit-visit : Tr.new-visit;
+                    font-size: Theme.font-lg;
+                    color: Theme.primary;
+                }
+
+                HorizontalLayout {
+                    spacing: Theme.pad-sm;
+
+                    // Client picker
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: Tr.client-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        HorizontalLayout {
+                            height: 32px;
+                            spacing: 4px;
+
+                            Rectangle {
+                                border-radius: 4px;
+                                background: Theme.input-bg;
+                                horizontal-stretch: 1;
+
+                                Text {
+                                    text: clients.length > 0 && form-client-idx < clients.length ? clients[form-client-idx].name : Tr.none-label;
+                                    font-size: Theme.font-md;
+                                    color: Theme.text;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: center;
+                                }
+                            }
+
+                            Rectangle {
+                                width: 28px;
+                                border-radius: 4px;
+                                background: Theme.primary;
+
+                                Text { text: "<"; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; font-size: Theme.font-md; }
+                                TouchArea {
+                                    clicked => {
+                                        if (form-client-idx > 0) {
+                                            form-client-idx -= 1;
+                                        }
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                width: 28px;
+                                border-radius: 4px;
+                                background: Theme.primary;
+
+                                Text { text: ">"; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; font-size: Theme.font-md; }
+                                TouchArea {
+                                    clicked => {
+                                        if (form-client-idx < clients.length - 1) {
+                                            form-client-idx += 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Date
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: Tr.date-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit {
+                            text <=> form-date;
+                            placeholder-text: "YYYY-MM-DD";
+                            height: 32px;
+                        }
+                    }
+
+                    // Amount
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: Tr.amount-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit {
+                            text <=> form-amount;
+                            placeholder-text: "0.00";
+                            height: 32px;
+                        }
+                    }
+
+                    // Notes
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 4px;
+                        Text { text: Tr.notes-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit {
+                            text <=> form-notes;
+                            placeholder-text: Tr.notes-placeholder;
+                            height: 32px;
+                        }
+                    }
+
+                    // Save button
+                    VerticalLayout {
+                        spacing: 4px;
+                        Text { text: " "; font-size: Theme.font-sm; }
+                        Rectangle {
+                            width: 80px;
+                            height: 32px;
+                            border-radius: 6px;
+                            background: Theme.primary;
+
+                            Text {
+                                text: editing-id >= 0 ? Tr.update : Tr.save;
+                                font-size: Theme.font-md;
+                                color: Theme.bg;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            TouchArea {
+                                clicked => {
+                                    if (clients.length > 0 && form-client-idx < clients.length) {
+                                        if (editing-id >= 0) {
+                                            root.update-visit(editing-id, clients[form-client-idx].id, form-date, form-amount.to-float(), form-notes);
+                                        } else {
+                                            root.add-visit(clients[form-client-idx].id, form-date, form-amount.to-float(), form-notes);
+                                        }
+                                        show-form = false;
+                                        editing-id = -1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Table header
+        Rectangle {
+            background: Theme.surface;
+            border-radius: 6px;
+            height: 40px;
+
+            HorizontalLayout {
+                padding-left: Theme.pad-md;
+                padding-right: Theme.pad-md;
+
+                Text { text: Tr.date-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                Text { text: Tr.client-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                Text { text: Tr.amount-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                Text { text: Tr.notes-label; font-size: Theme.font-sm; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; }
+                Text { text: Tr.actions-label; font-size: Theme.font-sm; color: Theme.text-dim; width: 140px; vertical-alignment: center; horizontal-alignment: center; }
+            }
+        }
+
+        // Visit rows
+        if visits.length == 0: Rectangle {
+            height: 60px;
+            Text {
+                text: Tr.no-visits;
+                font-size: Theme.font-md;
+                color: Theme.text-dim;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        ScrollView {
+            VerticalLayout {
+                alignment: start;
+                spacing: 4px;
+
+                for visit[idx] in visits: Rectangle {
+                    background: Theme.surface;
+                    border-radius: 6px;
+                    height: 44px;
+
+                    HorizontalLayout {
+                        padding-left: Theme.pad-md;
+                        padding-right: Theme.pad-md;
+
+                        Text { text: visit.date; font-size: Theme.font-md; color: Theme.text; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                        Text { text: visit.client-name; font-size: Theme.font-md; color: Theme.text; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                        Text { text: visit.amount + " " + Tr.currency; font-size: Theme.font-md; color: Theme.success; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+                        Text { text: visit.notes; font-size: Theme.font-md; color: Theme.text-dim; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+
+                        VerticalLayout {
+                            width: 140px;
+                            alignment: center;
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: center;
+
+                                Rectangle {
+                                    width: 56px;
+                                    height: 28px;
+                                    border-radius: 4px;
+                                    background: Theme.primary;
+
+                                    Text { text: Tr.edit; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                    TouchArea {
+                                        clicked => {
+                                            form-client-idx = visit.client-idx;
+                                            form-date = visit.date;
+                                            form-amount = visit.amount;
+                                            form-notes = visit.notes;
+                                            editing-id = visit.id;
+                                            show-form = true;
+                                        }
+                                    }
+                                }
+
+                                Rectangle {
+                                    width: 56px;
+                                    height: 28px;
+                                    border-radius: 4px;
+                                    background: Theme.danger;
+
+                                    Text { text: Tr.delete; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                                    TouchArea {
+                                        clicked => {
+                                            root.delete-visit(visit.id);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

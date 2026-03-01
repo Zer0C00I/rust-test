@@ -1,0 +1,124 @@
+export global Tr {
+    in-out property <bool> ukrainian: true;
+
+    // App
+    out property <string> app-title: ukrainian ? "Центр Відновлення CRM" : "Recovery CRM";
+    out property <string> window-title: ukrainian ? "Центр Відновлення CRM" : "Recovery Center CRM";
+
+    // Navigation
+    out property <string> nav-dashboard: ukrainian ? "Головна" : "Dashboard";
+    out property <string> nav-clients: ukrainian ? "Клієнти" : "Clients";
+    out property <string> nav-programs: ukrainian ? "Програми" : "Programs";
+    out property <string> nav-trainers: ukrainian ? "Тренери" : "Trainers";
+
+    // Shared buttons
+    out property <string> cancel: ukrainian ? "Скасувати" : "Cancel";
+    out property <string> save: ukrainian ? "Зберегти" : "Save";
+    out property <string> update: ukrainian ? "Оновити" : "Update";
+    out property <string> edit: ukrainian ? "Змінити" : "Edit";
+    out property <string> delete: ukrainian ? "Видалити" : "Delete";
+
+    // Shared labels
+    out property <string> name-label: ukrainian ? "Ім'я" : "Name";
+    out property <string> phone-label: ukrainian ? "Телефон" : "Phone";
+    out property <string> email-label: ukrainian ? "Ел. пошта" : "Email";
+    out property <string> notes-label: ukrainian ? "Нотатки" : "Notes";
+    out property <string> trainer-label: ukrainian ? "Тренер" : "Trainer";
+    out property <string> actions-label: ukrainian ? "Дії" : "Actions";
+    out property <string> none-label: ukrainian ? "Немає" : "None";
+
+    // Shared placeholders
+    out property <string> full-name-placeholder: ukrainian ? "Повне ім'я" : "Full name";
+    out property <string> phone-placeholder: ukrainian ? "Телефон" : "Phone";
+    out property <string> email-placeholder: ukrainian ? "Ел. пошта" : "Email";
+    out property <string> notes-placeholder: ukrainian ? "Нотатки" : "Notes";
+
+    // Dashboard
+    out property <string> dashboard-title: ukrainian ? "Головна" : "Dashboard";
+    out property <string> dashboard-empty: ukrainian ? "Немає активних програм. Призначте програми клієнтам, щоб бачити їх тут." : "No active programs. Assign programs to clients to see them here.";
+    out property <string> trainer-prefix: ukrainian ? "Тренер: " : "Trainer: ";
+    out property <string> started-prefix: ukrainian ? "Початок: " : "Started: ";
+    out property <string> checkins-header: ukrainian ? "Відвідування" : "Check-ins";
+    out property <string> no-checkins: ukrainian ? "Відвідування не заплановані." : "No check-ins scheduled.";
+    out property <string> week-prefix: ukrainian ? "Тиждень " : "Week ";
+    out property <string> exercises-header: ukrainian ? "Вправи" : "Exercises";
+    out property <string> no-exercises: ukrainian ? "У цій програмі немає вправ." : "No exercises in this program.";
+
+    // Clients
+    out property <string> clients-title: ukrainian ? "Клієнти" : "Clients";
+    out property <string> add-client: ukrainian ? "Додати клієнта" : "Add Client";
+    out property <string> edit-client: ukrainian ? "Редагувати клієнта" : "Edit Client";
+    out property <string> new-client: ukrainian ? "Новий клієнт" : "New Client";
+    out property <string> programs-header: ukrainian ? "Програми" : "Programs";
+    out property <string> assign: ukrainian ? "Призначити" : "Assign";
+    out property <string> end: ukrainian ? "Завершити" : "End";
+    out property <string> pause: ukrainian ? "Пауза" : "Pause";
+    out property <string> resume: ukrainian ? "Продовжити" : "Resume";
+    out property <string> complete-btn: ukrainian ? "Завершити" : "Complete";
+    out property <string> cancel-btn: ukrainian ? "Скасувати" : "Cancel";
+    out property <string> status-active: ukrainian ? "Активна" : "Active";
+    out property <string> status-paused: ukrainian ? "На паузі" : "Paused";
+    out property <string> status-completed: ukrainian ? "Завершена" : "Completed";
+    out property <string> status-cancelled: ukrainian ? "Скасована" : "Cancelled";
+
+    // Programs
+    out property <string> programs-title: ukrainian ? "Тренувальні програми" : "Training Programs";
+    out property <string> add-program: ukrainian ? "Додати програму" : "Add Program";
+    out property <string> edit-program: ukrainian ? "Редагувати програму" : "Edit Program";
+    out property <string> new-program: ukrainian ? "Нова програма" : "New Program";
+    out property <string> program-name-placeholder: ukrainian ? "Назва програми" : "Program name";
+    out property <string> duration-weeks-label: ukrainian ? "Тривалість (тижні)" : "Duration (weeks)";
+    out property <string> description-label: ukrainian ? "Опис" : "Description";
+    out property <string> program-desc-placeholder: ukrainian ? "Опис програми" : "Program description";
+    out property <string> weeks-label: ukrainian ? "Тижні" : "Weeks";
+
+    // Exercises
+    out property <string> add-exercise: ukrainian ? "Додати вправу" : "Add Exercise";
+    out property <string> edit-exercise: ukrainian ? "Редагувати вправу" : "Edit Exercise";
+    out property <string> new-exercise: ukrainian ? "Нова вправа" : "New Exercise";
+    out property <string> exercise-name-placeholder: ukrainian ? "Назва вправи" : "Exercise name";
+    out property <string> sets-label: ukrainian ? "Підходи" : "Sets";
+    out property <string> reps-label: ukrainian ? "Повтори" : "Reps";
+    out property <string> weight-label: ukrainian ? "Вага (кг)" : "Weight (kg)";
+    out property <string> optional-notes-placeholder: ukrainian ? "Додаткові нотатки" : "Optional notes";
+
+    // Trainers
+    out property <string> trainers-title: ukrainian ? "Тренери" : "Trainers";
+    out property <string> add-trainer: ukrainian ? "Додати тренера" : "Add Trainer";
+    out property <string> edit-trainer: ukrainian ? "Редагувати тренера" : "Edit Trainer";
+    out property <string> new-trainer: ukrainian ? "Новий тренер" : "New Trainer";
+    out property <string> phone-number-placeholder: ukrainian ? "Номер телефону" : "Phone number";
+    out property <string> specialization-label: ukrainian ? "Спеціалізація" : "Specialization";
+    out property <string> specialization-placeholder: ukrainian ? "напр. Фізіотерапія" : "e.g. Physical Therapy";
+
+    // Finances
+    out property <string> nav-finances: ukrainian ? "Фінанси" : "Finances";
+    out property <string> finances-title: ukrainian ? "Фінанси" : "Finances";
+    out property <string> add-visit: ukrainian ? "Додати візит" : "Add Visit";
+    out property <string> edit-visit: ukrainian ? "Редагувати візит" : "Edit Visit";
+    out property <string> new-visit: ukrainian ? "Новий візит" : "New Visit";
+    out property <string> date-label: ukrainian ? "Дата" : "Date";
+    out property <string> amount-label: ukrainian ? "Сума" : "Amount";
+    out property <string> total-label: ukrainian ? "Всього" : "Total";
+    out property <string> client-label: ukrainian ? "Клієнт" : "Client";
+    out property <string> no-visits: ukrainian ? "Немає візитів за цей місяць." : "No visits this month.";
+    out property <string> currency: ukrainian ? "грн" : "UAH";
+
+    // Print
+    out property <string> print-btn: ukrainian ? "🖨 Друк" : "🖨 Print";
+    out property <string> save-pdf-btn: ukrainian ? "📄 Зберегти PDF" : "📄 Save PDF";
+
+    // Schedule
+    out property <string> nav-schedule: ukrainian ? "Розклад" : "Schedule";
+    out property <string> schedule-title: ukrainian ? "Тижневий розклад" : "Weekly Schedule";
+    out property <string> add-appointment: ukrainian ? "Додати запис" : "Add Appointment";
+    out property <string> edit-appointment: ukrainian ? "Редагувати запис" : "Edit Appointment";
+    out property <string> new-appointment: ukrainian ? "Новий запис" : "New Appointment";
+    out property <string> time-label: ukrainian ? "Час" : "Time";
+    out property <string> duration-label: ukrainian ? "Тривалість (хв)" : "Duration (min)";
+    out property <string> duration-minutes-placeholder: ukrainian ? "60" : "60";
+    out property <string> mark-attended: ukrainian ? "✓ Прийшов" : "✓ Attended";
+    out property <string> mark-no-show: ukrainian ? "✗ Не прийшов" : "✗ No-show";
+    out property <string> payment-label: ukrainian ? "Оплата (грн)" : "Payment";
+    out property <string> appointment-note: ukrainian ? "Запис (зустріч)" : "Appointment";
+}

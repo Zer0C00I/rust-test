@@ -8,7 +8,13 @@ license = "AGPL"
 repository = "https://github.com/Zer0C00I/rust-test"
 
 [dependencies]
-slint = "1.14.1"
+slint = { version = "1.14.1", default-features = false, features = ["backend-winit", "renderer-femtovg", "compat-1-2"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+chrono = "0.4"
+genpdf = "0.2.0"
+rfd = "0.17.2"
+ashpd = { version = "0.13", features = ["print"] }
+tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [build-dependencies]
 slint-build = "1.14.1"
@@ -18,7 +24,7 @@ maintainer = "User"
 section = "utils"
 priority = "optional"
 assets = [
-    ["target/release/slint-crm", "usr/bin/", "755"],
+    ["target/release/slint-crm", "opt/slint-crm/bin/", "755"],
     ["slint-crm.desktop", "usr/share/applications/", "644"],
 ]
 depends = "$auto"

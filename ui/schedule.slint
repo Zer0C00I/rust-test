@@ -1,0 +1,543 @@
+import { ScrollView, LineEdit } from "std-widgets.slint";
+import { Theme } from "styles.slint";
+import { Tr } from "translations.slint";
+import { ClientData } from "clients.slint";
+
+export struct WeekDayData {
+    label: string,
+    date: string,
+    is-today: bool,
+    day-index: int,
+}
+
+export struct AppointmentData {
+    id: int,
+    client-id: int,
+    client-idx: int,
+    client-name: string,
+    date: string,
+    time: string,
+    hour: int,
+    minute: int,
+    day-index: int,
+    duration-minutes: int,
+    notes: string,
+    status: string,   // "pending" | "attended" | "no-show"
+    amount: float,
+}
+
+export component SchedulePage inherits Rectangle {
+    background: Theme.bg;
+
+    in property <[WeekDayData]> week-days;
+    in property <[AppointmentData]> appointments;
+    in property <[string]> hour-labels;
+    in-out property <string> week-label;
+    in property <[ClientData]> clients;
+
+    // Selected slot (grid highlight)
+    in-out property <int> selected-slot-day: -1;
+    in-out property <int> selected-slot-hour: -1;
+
+    // Form state
+    in-out property <bool> show-form: false;
+    in-out property <int> form-editing-id: -1;
+    in-out property <int> form-client-idx: 0;
+    in-out property <string> form-date;
+    in-out property <int> form-hour: 9;
+    in-out property <int> form-minute: 0;
+    in-out property <int> form-duration: 60;
+    in-out property <string> form-notes;
+    in-out property <string> form-amount: "0";
+
+    callback prev-week();
+    callback next-week();
+    // add-appointment(client_id, date, time, duration_minutes, notes)
+    callback add-appointment(int, string, string, int, string);
+    // update-appointment(id, client_id, date, time, duration_minutes, notes)
+    callback update-appointment(int, int, string, string, int, string);
+    callback delete-appointment(int);
+    callback mark-attended(int, int, string, float, string);  // id, client_id, date, amount, visit-note
+    callback mark-no-show(int);
+
+    pure function pad2(n: int) -> string {
+        n < 10 ? "0" + n : "" + n
+    }
+
+    VerticalLayout {
+        padding: Theme.pad-lg;
+        spacing: Theme.pad-md;
+
+        // ── Title + week navigation ──────────────────────────────────────
+        HorizontalLayout {
+            spacing: Theme.pad-sm;
+
+            Text {
+                text: Tr.schedule-title;
+                font-size: Theme.font-xl;
+                color: Theme.text;
+                vertical-alignment: center;
+            }
+
+            Rectangle { horizontal-stretch: 1; }
+
+            Rectangle {
+                width: 36px; height: 36px; border-radius: 6px; background: Theme.surface;
+                Text { text: "‹"; font-size: Theme.font-xl; color: Theme.text; horizontal-alignment: center; vertical-alignment: center; }
+                TouchArea { clicked => { root.prev-week(); } }
+            }
+
+            Text {
+                text: week-label;
+                font-size: Theme.font-md; color: Theme.text;
+                vertical-alignment: center; min-width: 200px; horizontal-alignment: center;
+            }
+
+            Rectangle {
+                width: 36px; height: 36px; border-radius: 6px; background: Theme.surface;
+                Text { text: "›"; font-size: Theme.font-xl; color: Theme.text; horizontal-alignment: center; vertical-alignment: center; }
+                TouchArea { clicked => { root.next-week(); } }
+            }
+
+            Rectangle { width: Theme.pad-sm; }
+
+            Rectangle {
+                width: 148px; height: 36px; border-radius: 6px;
+                background: show-form ? Theme.danger : Theme.primary;
+                Text {
+                    text: show-form ? Tr.cancel : Tr.add-appointment;
+                    font-size: Theme.font-md; color: Theme.bg;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+                TouchArea {
+                    clicked => {
+                        if (show-form) {
+                            show-form = false;
+                            form-editing-id = -1;
+                            selected-slot-day = -1;
+                            selected-slot-hour = -1;
+                        } else {
+                            form-editing-id = -1;
+                            form-client-idx = 0;
+                            form-date = week-days.length > 0 ? week-days[0].date : "";
+                            form-hour = 9;
+                            form-minute = 0;
+                            form-duration = 60;
+                            form-notes = "";
+                            form-amount = "0";
+                            show-form = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Inline add/edit form ─────────────────────────────────────────
+        if show-form: Rectangle {
+            background: Theme.surface;
+            border-radius: 8px;
+            height: form-editing-id >= 0 ? 210px : 156px;
+
+            VerticalLayout {
+                padding: Theme.pad-md;
+                spacing: Theme.pad-sm;
+
+                Text {
+                    text: form-editing-id >= 0 ? Tr.edit-appointment : Tr.new-appointment;
+                    font-size: Theme.font-lg; color: Theme.primary;
+                }
+
+                HorizontalLayout {
+                    spacing: Theme.pad-sm;
+
+                    // Client picker
+                    VerticalLayout {
+                        horizontal-stretch: 2; spacing: 4px;
+                        Text { text: Tr.client-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        HorizontalLayout {
+                            spacing: 4px;
+                            Rectangle {
+                                width: 24px; height: 28px; border-radius: 4px; background: Theme.surface-hover;
+                                Text { text: "‹"; font-size: Theme.font-md; color: Theme.text; horizontal-alignment: center; vertical-alignment: center; }
+                                TouchArea { clicked => { if (form-client-idx > 0) { form-client-idx -= 1; } } }
+                            }
+                            Text {
+                                text: clients.length > 0 && form-client-idx < clients.length ? clients[form-client-idx].name : "-";
+                                font-size: Theme.font-md; color: Theme.text;
+                                horizontal-stretch: 1; vertical-alignment: center; horizontal-alignment: center;
+                            }
+                            Rectangle {
+                                width: 24px; height: 28px; border-radius: 4px; background: Theme.surface-hover;
+                                Text { text: "›"; font-size: Theme.font-md; color: Theme.text; horizontal-alignment: center; vertical-alignment: center; }
+                                TouchArea { clicked => { if (form-client-idx < clients.length - 1) { form-client-idx += 1; } } }
+                            }
+                        }
+                    }
+
+                    // Date
+                    VerticalLayout {
+                        horizontal-stretch: 1; spacing: 4px;
+                        Text { text: Tr.date-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit { text <=> form-date; height: 28px; }
+                    }
+
+                    // Time — hour and minute as custom ‹ › pickers
+                    VerticalLayout {
+                        width: 148px; spacing: 4px;
+                        Text { text: Tr.time-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        HorizontalLayout {
+                            spacing: 4px;
+                            // Hour picker
+                            Rectangle {
+                                width: 22px; height: 28px; border-radius: 4px; background: Theme.surface-hover;
+                                Text { text: "‹"; font-size: Theme.font-md; color: Theme.text; horizontal-alignment: center; vertical-alignment: center; }
+                                TouchArea { clicked => { form-hour = form-hour > 6 ? form-hour - 1 : 6; } }
+                            }
+                            Text {
+                                text: root.pad2(form-hour);
+                                font-size: Theme.font-md; color: Theme.text;
+                                width: 22px; horizontal-alignment: center; vertical-alignment: center;
+                            }
+                            Rectangle {
+                                width: 22px; height: 28px; border-radius: 4px; background: Theme.surface-hover;
+                                Text { text: "›"; font-size: Theme.font-md; color: Theme.text; horizontal-alignment: center; vertical-alignment: center; }
+                                TouchArea { clicked => { form-hour = form-hour < 21 ? form-hour + 1 : 21; } }
+                            }
+                            Text { text: ":"; font-size: Theme.font-md; color: Theme.text-dim; vertical-alignment: center; width: 6px; horizontal-alignment: center; }
+                            // Minute picker (steps of 5: 00 05 10 … 55)
+                            Rectangle {
+                                width: 22px; height: 28px; border-radius: 4px; background: Theme.surface-hover;
+                                Text { text: "‹"; font-size: Theme.font-md; color: Theme.text; horizontal-alignment: center; vertical-alignment: center; }
+                                TouchArea { clicked => { form-minute = form-minute >= 5 ? form-minute - 5 : 55; } }
+                            }
+                            Text {
+                                text: root.pad2(form-minute);
+                                font-size: Theme.font-md; color: Theme.text;
+                                width: 22px; horizontal-alignment: center; vertical-alignment: center;
+                            }
+                            Rectangle {
+                                width: 22px; height: 28px; border-radius: 4px; background: Theme.surface-hover;
+                                Text { text: "›"; font-size: Theme.font-md; color: Theme.text; horizontal-alignment: center; vertical-alignment: center; }
+                                TouchArea { clicked => { form-minute = form-minute < 55 ? form-minute + 5 : 0; } }
+                            }
+                        }
+                    }
+
+                    // Duration (in steps of 15 min)
+                    VerticalLayout {
+                        width: 110px; spacing: 4px;
+                        Text { text: Tr.duration-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        HorizontalLayout {
+                            spacing: 4px;
+                            Rectangle {
+                                width: 22px; height: 28px; border-radius: 4px; background: Theme.surface-hover;
+                                Text { text: "‹"; font-size: Theme.font-md; color: Theme.text; horizontal-alignment: center; vertical-alignment: center; }
+                                TouchArea { clicked => { form-duration = form-duration > 15 ? form-duration - 15 : 15; } }
+                            }
+                            Text {
+                                text: form-duration + " min";
+                                font-size: Theme.font-md; color: Theme.text;
+                                horizontal-stretch: 1; horizontal-alignment: center; vertical-alignment: center;
+                            }
+                            Rectangle {
+                                width: 22px; height: 28px; border-radius: 4px; background: Theme.surface-hover;
+                                Text { text: "›"; font-size: Theme.font-md; color: Theme.text; horizontal-alignment: center; vertical-alignment: center; }
+                                TouchArea { clicked => { form-duration = form-duration < 240 ? form-duration + 15 : 240; } }
+                            }
+                        }
+                    }
+
+                    // Notes
+                    VerticalLayout {
+                        horizontal-stretch: 2; spacing: 4px;
+                        Text { text: Tr.notes-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit { text <=> form-notes; height: 28px; }
+                    }
+                }
+
+                // ── Attendance row (only when editing an existing appointment) ──
+                if form-editing-id >= 0: HorizontalLayout {
+                    spacing: Theme.pad-sm; alignment: start;
+
+                    // Payment amount field
+                    VerticalLayout {
+                        width: 130px; spacing: 4px;
+                        Text { text: Tr.payment-label; font-size: Theme.font-sm; color: Theme.text-dim; }
+                        LineEdit { text <=> form-amount; placeholder-text: "0"; height: 28px; }
+                    }
+
+                    // ✓ Attended
+                    Rectangle {
+                        width: 120px; height: 28px; border-radius: 4px; background: Theme.success;
+                        y: 20px; // align with inputs
+                        Text { text: Tr.mark-attended; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                        TouchArea {
+                            clicked => {
+                                root.mark-attended(
+                                    form-editing-id,
+                                    clients.length > 0 ? clients[form-client-idx].id : 0,
+                                    form-date,
+                                    form-amount.to-float(),
+                                    Tr.appointment-note
+                                );
+                                show-form = false;
+                                form-editing-id = -1;
+                                selected-slot-day = -1;
+                                selected-slot-hour = -1;
+                            }
+                        }
+                    }
+
+                    // ✗ No-show
+                    Rectangle {
+                        width: 120px; height: 28px; border-radius: 4px; background: Theme.danger;
+                        y: 20px;
+                        Text { text: Tr.mark-no-show; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                        TouchArea {
+                            clicked => {
+                                root.mark-no-show(form-editing-id);
+                                show-form = false;
+                                form-editing-id = -1;
+                                selected-slot-day = -1;
+                                selected-slot-hour = -1;
+                            }
+                        }
+                    }
+                }
+
+                // ── Save / Delete row ────────────────────────────────────
+                HorizontalLayout {
+                    spacing: Theme.pad-sm; alignment: start;
+
+                    Rectangle {
+                        width: 80px; height: 28px; border-radius: 4px; background: Theme.primary;
+                        Text { text: form-editing-id >= 0 ? Tr.update : Tr.save; font-size: Theme.font-md; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                        TouchArea {
+                            clicked => {
+                                if (form-editing-id >= 0) {
+                                    root.update-appointment(
+                                        form-editing-id,
+                                        clients.length > 0 ? clients[form-client-idx].id : 0,
+                                        form-date,
+                                        root.pad2(form-hour) + ":" + root.pad2(form-minute),
+                                        form-duration,
+                                        form-notes
+                                    );
+                                } else {
+                                    root.add-appointment(
+                                        clients.length > 0 ? clients[form-client-idx].id : 0,
+                                        form-date,
+                                        root.pad2(form-hour) + ":" + root.pad2(form-minute),
+                                        form-duration,
+                                        form-notes
+                                    );
+                                }
+                                show-form = false;
+                                form-editing-id = -1;
+                                selected-slot-day = -1;
+                                selected-slot-hour = -1;
+                            }
+                        }
+                    }
+
+                    if form-editing-id >= 0: Rectangle {
+                        width: 80px; height: 28px; border-radius: 4px; background: Theme.danger;
+                        Text { text: Tr.delete; font-size: Theme.font-sm; color: Theme.bg; horizontal-alignment: center; vertical-alignment: center; }
+                        TouchArea {
+                            clicked => {
+                                root.delete-appointment(form-editing-id);
+                                show-form = false;
+                                form-editing-id = -1;
+                                selected-slot-day = -1;
+                                selected-slot-hour = -1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Week grid ────────────────────────────────────────────────────
+        VerticalLayout {
+            vertical-stretch: 1;
+            spacing: 0;
+
+            // Fixed day-header row
+            HorizontalLayout {
+                height: 36px;
+                spacing: 0;
+
+                // Spacer for time-label column
+                Rectangle { width: 55px; background: transparent; }
+
+                for day[d] in week-days: Rectangle {
+                    horizontal-stretch: 1;
+                    min-width: 80px;
+                    border-radius: 4px;
+                    background: day.is-today ? Theme.primary : Theme.surface;
+                    border-width: 1px;
+                    border-color: Theme.border;
+
+                    Text {
+                        text: day.label;
+                        font-size: Theme.font-sm;
+                        color: day.is-today ? Theme.bg : Theme.text;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Single scrollable area: time labels + day columns
+            // Start at 8:00 (2 hours × 60px = 120px from top)
+            ScrollView {
+                vertical-stretch: 1;
+                viewport-y: -130px;
+
+                HorizontalLayout {
+                    spacing: 0;
+
+                    // Time labels column
+                    VerticalLayout {
+                        width: 55px;
+                        spacing: 0;
+                        for lbl[i] in hour-labels: Rectangle {
+                            height: 60px;
+
+                            // Hour label (slightly above the hour line)
+                            Text {
+                                text: lbl;
+                                font-size: Theme.font-sm;
+                                color: Theme.text-dim;
+                                horizontal-alignment: right;
+                                vertical-alignment: top;
+                                y: -8px;
+                                width: 46px;
+                            }
+
+                            
+
+                            // 5-min ticks  (4px wide, end at x=55)
+                            Rectangle { x: 51px; y:  5px; width: 4px; height: 1px; background: Theme.border; opacity: 0.45; }
+                            Rectangle { x: 51px; y: 10px; width: 4px; height: 1px; background: Theme.border; opacity: 0.45; }
+                            Rectangle { x: 51px; y: 20px; width: 4px; height: 1px; background: Theme.border; opacity: 0.45; }
+                            Rectangle { x: 51px; y: 25px; width: 4px; height: 1px; background: Theme.border; opacity: 0.45; }
+                            Rectangle { x: 51px; y: 35px; width: 4px; height: 1px; background: Theme.border; opacity: 0.45; }
+                            Rectangle { x: 51px; y: 40px; width: 4px; height: 1px; background: Theme.border; opacity: 0.45; }
+                            Rectangle { x: 51px; y: 50px; width: 4px; height: 1px; background: Theme.border; opacity: 0.45; }
+                            Rectangle { x: 51px; y: 55px; width: 4px; height: 1px; background: Theme.border; opacity: 0.45; }
+
+                            // Quarter-hour ticks  (7px wide, end at x=55)
+                            Rectangle { x: 48px; y: 15px; width: 7px; height: 1px; background: Theme.border; opacity: 0.7; }
+                            Rectangle { x: 48px; y: 45px; width: 7px; height: 1px; background: Theme.border; opacity: 0.7; }
+
+                            // Half-hour tick  (12px wide, end at x=55)
+                            Rectangle { x: 43px; y: 30px; width: 12px; height: 1px; background: Theme.border; opacity: 0.9; }
+                        }
+                        Rectangle { height: 30px; }
+                    }
+
+                    // Day columns (absolute layout inside fixed-height rectangle)
+                    for day[d] in week-days: Rectangle {
+                        horizontal-stretch: 1;
+                        min-width: 80px;
+                        // 16 hour slots × 60px = 960px
+                        height: 960px;
+                        background: transparent;
+                        clip: true;
+
+                        // Hour grid lines + click-to-add
+                        for lbl[i] in hour-labels: Rectangle {
+                            x: 0; y: i * 60px;
+                            width: parent.width; height: 60px;
+                            background: (selected-slot-day == d && selected-slot-hour == i)
+                                ? Theme.surface-hover
+                                : transparent;
+                            animate background { duration: 120ms; }
+                            Rectangle {
+                                x: 0; y: 0;
+                                width: parent.width; height: 1px;
+                                background: Theme.border;
+                            }
+                            TouchArea {
+                                clicked => {
+                                    selected-slot-day = d;
+                                    selected-slot-hour = i;
+                                    form-editing-id = -1;
+                                    form-client-idx = 0;
+                                    form-date = day.date;
+                                    form-hour = i + 6;
+                                    form-minute = 0;
+                                    form-duration = 60;
+                                    form-notes = "";
+                                    form-amount = "0";
+                                    show-form = true;
+                                }
+                            }
+                        }
+                        // Bottom border
+                        Rectangle {
+                            x: 0; y: 960px - 1px;
+                            width: parent.width; height: 1px;
+                            background: Theme.border;
+                        }
+                        // Right column separator
+                        Rectangle {
+                            x: parent.width - 1px; y: 0;
+                            width: 1px; height: 960px;
+                            background: Theme.border;
+                        }
+
+                        // Appointment cards (all; show only matching day)
+                        for appt[ai] in appointments: Rectangle {
+                            visible: appt.day-index == d;
+                            x: 2px;
+                            y: (appt.hour - 6) * 60px + appt.minute * 1px;
+                            width: parent.width - 4px;
+                            height: appt.duration-minutes * 1px < 30px ? 30px : appt.duration-minutes * 1px;
+                            border-radius: 4px;
+                            background: form-editing-id == appt.id
+                                ? Theme.primary-hover
+                                : appt.status == "attended" ? Theme.success
+                                : appt.status == "no-show"  ? Theme.danger
+                                : Theme.primary;
+                            animate background { duration: 120ms; }
+                            opacity: appt.status == "no-show" ? 0.6 : 1.0;
+                            clip: true;
+
+                            VerticalLayout {
+                                padding: 3px; spacing: 1px;
+                                Text {
+                                    text: appt.client-name;
+                                    font-size: Theme.font-sm; color: Theme.bg;
+                                    overflow: elide;
+                                }
+                                Text {
+                                    visible: appt.duration-minutes >= 45;
+                                    text: appt.time;
+                                    font-size: 9px; color: Theme.bg; opacity: 0.8;
+                                }
+                            }
+
+                            TouchArea {
+                                clicked => {
+                                    selected-slot-day = -1;
+                                    selected-slot-hour = -1;
+                                    form-editing-id = appt.id;
+                                    form-client-idx = appt.client-idx;
+                                    form-date = appt.date;
+                                    form-hour = appt.hour;
+                                    form-minute = appt.minute;
+                                    form-duration = appt.duration-minutes;
+                                    form-notes = appt.notes;
+                                    form-amount = appt.amount > 0 ? "" + round(appt.amount) : "0";
+                                    show-form = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
