@@ -28,8 +28,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
-            musl-tools \
-            musl-dev \
             libfontconfig1-dev \
             libxcb-shape0-dev \
             libxcb-xfixes0-dev \
@@ -40,34 +38,32 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-musl
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
-          key: linux-musl
+          key: linux-gnu
 
       - name: Install cargo-deb
         run: cargo install cargo-deb
 
-      - name: Build release (static musl)
-        run: cargo build --release --target x86_64-unknown-linux-musl
+      - name: Build release
+        run: cargo build --release
 
       - name: Create .deb package
-        run: cargo deb --no-build --target x86_64-unknown-linux-musl
+        run: cargo deb --no-build
 
       - name: Upload .deb artifact
         uses: actions/upload-artifact@v4
         with:
           name: deb-package
-          path: target/x86_64-unknown-linux-musl/debian/*.deb
+          path: target/debian/*.deb
 
-      - name: Upload static binary
+      - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: linux-static-binary
-          path: target/x86_64-unknown-linux-musl/release/slint-crm
+          name: linux-binary
+          path: target/release/slint-crm
 
   build-freebsd:
     runs-on: ubuntu-22.04
@@ -92,7 +88,6 @@ jobs:
             cp slint-crm.desktop pkg/usr/local/share/applications/
 
             VERSION=$(grep '^version' Cargo.toml | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-            ARCH=$(uname -m)
 
             {
               echo "name: slint-crm"
@@ -125,8 +120,8 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
 
-      - name: Rename static binary
-        run: mv linux-static-binary/slint-crm linux-static-binary/slint-crm-linux-x86_64-static
+      - name: Rename binary
+        run: mv linux-binary/slint-crm linux-binary/slint-crm-linux-x86_64
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -134,5 +129,5 @@ jobs:
           files: |
             deb-package/*.deb
             freebsd-package/*.pkg
-            linux-static-binary/slint-crm-linux-x86_64-static
+            linux-binary/slint-crm-linux-x86_64
           generate_release_notes: true
