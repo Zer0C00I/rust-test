@@ -6,6 +6,7 @@ mod trainers;
 mod visits;
 
 use rusqlite::{Connection, Result};
+use chrono;
 
 pub use checkins::ProgramCheckIn;
 
@@ -16,11 +17,48 @@ pub struct Db {
 impl Db {
     pub fn open() -> Result<Self> {
         let path = db_path();
+        backup_on_open(&path);
         let conn = Connection::open(&path)?;
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;")?;
         let db = Db { conn };
         db.create_tables()?;
         db.run_migrations()?;
         Ok(db)
+    }
+}
+
+fn backup_on_open(db_path: &std::path::Path) {
+    if !db_path.exists() {
+        return;
+    }
+    let backup_dir = db_path.parent().unwrap().join("backups");
+    if std::fs::create_dir_all(&backup_dir).is_err() {
+        return;
+    }
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let dest = backup_dir.join(format!("crm_{}.db", today));
+    if dest.exists() {
+        return; // already backed up today
+    }
+    let _ = std::fs::copy(db_path, &dest);
+
+    // keep last 7 daily backups
+    if let Ok(mut entries) = std::fs::read_dir(&backup_dir) {
+        let mut files: Vec<_> = entries
+            .by_ref()
+            .flatten()
+            .filter(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .starts_with("crm_")
+            })
+            .collect();
+        files.sort_by_key(|e| e.file_name());
+        if files.len() > 7 {
+            for old in &files[..files.len() - 7] {
+                let _ = std::fs::remove_file(old.path());
+            }
+        }
     }
 }
 
